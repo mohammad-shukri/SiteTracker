@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flat Wise Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--ink:#1c2733;--mut:#6b7785;--line:#dfe4ea;--pri:#1f5fbf;--pri2:#e8f0fc;--ok:#1e8e4e;--warn:#d98a00;--bad:#c53030;--r:10px}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;min-height:36px}
+button.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+button.bad{background:var(--bad);border-color:var(--bad);color:#fff}
+button:disabled{opacity:.5;cursor:not-allowed}
+input,select,textarea{border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:#fff;min-height:36px;width:100%}
+input[type=checkbox]{width:auto;min-height:0}
+label{display:block;font-size:12px;color:var(--mut);margin:8px 0 3px}
+h2{margin:0 0 10px;font-size:18px} h3{margin:16px 0 8px;font-size:15px}
+.hide{display:none!important}
+header{position:sticky;top:0;z-index:20;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:8px 14px;flex-wrap:wrap}
+header .brand{font-weight:700;font-size:16px}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav button{border:0;background:transparent;padding:6px 12px;border-radius:8px}
+nav button.on{background:var(--pri2);color:var(--pri);font-weight:600}
+.sp{flex:1}
+.who{font-size:12px;color:var(--mut)}
+main{padding:12px 14px 90px;max-width:1500px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:12px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.fbar{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px;margin-bottom:12px}
+.fbar .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ms{position:relative}
+.ms>button{display:flex;gap:6px;align-items:center;max-width:190px;overflow:hidden;white-space:nowrap}
+.ms>button.act{background:var(--pri2);border-color:var(--pri);color:var(--pri)}
+.ms .panel{position:absolute;z-index:30;top:40px;left:0;width:270px;max-height:360px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);display:flex;flex-direction:column}
+.ms .panel .top{padding:8px;display:flex;gap:6px;border-bottom:1px solid var(--line)}
+.ms .panel .top input{min-width:0}
+.ms .panel .list{overflow:auto;padding:4px 0}
+.ms .panel label{display:flex;gap:8px;align-items:center;margin:0;padding:6px 10px;font-size:14px;color:var(--ink);cursor:pointer}
+.ms .panel label:hover{background:var(--pri2)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.kpi b{display:block;font-size:24px}.kpi span{color:var(--mut);font-size:12px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{font-size:12px;color:var(--mut);background:#fafbfc;position:sticky;top:0}
+.tw{overflow:auto;max-height:70vh;border:1px solid var(--line);border-radius:var(--r);background:#fff}
+tr.r{cursor:pointer} tr.r:hover td{background:var(--pri2)}
+.pb{background:#e9edf2;border-radius:6px;height:16px;min-width:70px;position:relative;overflow:hidden}
+.pb i{display:block;height:100%;background:var(--pri)} .pb u{position:absolute;inset:0;text-align:center;font-size:11px;line-height:16px;text-decoration:none}
+.bd{display:inline-block;padding:2px 8px;border-radius:20px;font-size:12px;background:#eef1f5}
+.bd.Completed{background:#dff3e7;color:var(--ok)}.bd.Issue{background:#fde2e2;color:var(--bad)}
+.bd.InProgress{background:#fff1d6;color:#9a6200}.bd.Waiting{background:#eceff3;color:var(--mut)}.bd.Ready{background:var(--pri2);color:var(--pri)}
+small,.mut{color:var(--mut)}
+.err{background:#fde8e8;color:#8f1d1d;border:1px solid #f5bcbc;border-radius:8px;padding:8px 10px;margin:8px 0;white-space:pre-wrap}
+.okmsg{background:#e3f5ea;color:#17683a;border:1px solid #b7e2c8;border-radius:8px;padding:8px 10px;margin:8px 0}
+.warnmsg{background:#fff4dc;color:#7a5200;border:1px solid #f0d89a;border-radius:8px;padding:8px 10px;margin:8px 0}
+dialog{border:0;border-radius:14px;padding:0;width:min(640px,96vw);max-height:92vh;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(20,30,45,.5)}
+dialog form,dialog .dlg{padding:16px;max-height:92vh;overflow:auto}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.sel-bar{position:sticky;bottom:8px;z-index:15;background:#1c2733;color:#fff;border-radius:12px;padding:10px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.sel-bar button{min-height:34px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:76px;background:#1c2733;color:#fff;padding:10px 16px;border-radius:10px;z-index:99;max-width:92vw}
+.login{max-width:380px;margin:8vh auto;padding:0 14px}
+.mx td,.mx th{padding:4px 6px;text-align:center;font-size:12px;border:1px solid #eef0f3}
+.mx{border-collapse:separate;border-spacing:0}
+.mxw{max-height:72vh}
+.mx thead th{position:sticky;background:#fafbfc;z-index:3}
+.mx thead tr:first-child th{top:0;height:26px}
+.mx thead tr:nth-child(2) th{top:26px}
+.mx thead tr:nth-child(3) th{top:52px}
+.mx th.grp{background:#eaf1fb}
+.mx .l1,.mx .l2{position:sticky;background:#fff;z-index:2;white-space:nowrap;text-align:left}
+.mx .l1{left:0;min-width:150px;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.mx .l2{left:150px;min-width:56px;border-right:3px solid #1c2733}
+.mx thead th.l1,.mx thead th.l2{z-index:5;background:#fafbfc}
+.mx .gi{border-left:3px solid #1c2733}
+.mx .ga{border-left:2px solid #8a97a6}
+.mx tr.brk td{border-top:2px solid #8a97a6}
+.mx td.tot{font-weight:600}
+.mx td{white-space:nowrap}
+.mx .pcs{opacity:.7;margin-left:4px;font-size:11px}
+.lg{display:inline-block;width:14px;height:14px;border:1px solid #bbb;vertical-align:middle;border-radius:3px}
+.mx .dt{display:block;font-size:11px;white-space:nowrap;line-height:1.25}
+.mx tfoot td{position:sticky;bottom:0;background:#fafbfc;z-index:2}
+.mx td.c{cursor:pointer}
+.hm td{min-width:56px;text-align:center;font-size:12px}
+.seg{display:flex;height:18px;border-radius:5px;overflow:hidden;background:#eef1f5;min-width:120px}
+.seg i{display:block;height:100%}
+.pg{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:8px;flex-wrap:wrap}
+.chip{display:inline-flex;gap:4px;align-items:center;background:#eef1f5;border-radius:16px;padding:2px 8px;margin:2px;font-size:12px}
+.chip b{cursor:pointer;color:var(--bad)}
+.hist{font-size:12px;border-left:3px solid var(--line);padding-left:8px;margin:6px 0}
+.mobnav{display:none}
+@media (max-width:760px){
+ main{padding:8px 8px 96px} header{padding:6px 8px} .who{display:none}
+ nav{display:none}
+ .mobnav{display:flex;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);z-index:25;padding:4px 4px calc(4px + env(safe-area-inset-bottom))}
+ .mobnav button{flex:1;border:0;background:transparent;font-size:11px;padding:6px 2px;min-height:44px}
+ .mobnav button.on{color:var(--pri);font-weight:700;background:var(--pri2)}
+ .fbar .row.fold{display:none} .fbar.open .row.fold{display:flex}
+ .ms .panel{position:fixed;left:8px;right:8px;top:auto;bottom:70px;width:auto;max-height:60vh}
+ .ms>button{max-width:none}
+ .g2{grid-template-columns:1fr}
+ table.cards thead{display:none}
+ table.cards,table.cards tbody{display:block}
+ table.cards tr{display:grid;grid-template-columns:auto 1fr 1fr;gap:2px 8px;background:#fff;border:1px solid var(--line);border-radius:10px;margin:8px 0;padding:8px}
+ table.cards td{border:0;padding:2px 0;display:block}
+ table.cards td[data-l]::before{content:attr(data-l);display:block;font-size:10px;color:var(--mut);text-transform:uppercase}
+ table.cards td.full{grid-column:1/-1}
+ .tw.cardwrap{border:0;background:transparent;max-height:none}
+ dialog{width:100vw;max-height:100vh;height:100vh;border-radius:0} dialog form,dialog .dlg{max-height:100vh;height:100%}
+ button,input,select{min-height:42px}
+}
+@media (min-width:761px){table.cards td.full{}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" class="toast hide"></div>
+<dialog id="dlg"></dialog>
+
+<script>
+"use strict";
+/* ============ CONFIG: paste your Supabase project URL and PUBLISHABLE (anon) key ============ */
+const CFG = { url: 'https://fzpftrhgmaqgdsrteacg.supabase.co', key: 'sb_publishable_k8gA1UKeO2ZqXtJaKsuQpQ_y4fWQqNC' };
+/* (never put the secret / service_role key here) */
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const num = v => (v === null || v === undefined || v === '' ? null : Number(v));
+const fmt = (v, d = 1) => v === null || v === undefined ? '' : Number(v).toLocaleString(undefined, { maximumFractionDigits: d });
+const natural = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true });
+let sb, ME = null, PROFILE = null, META = {}, PROFILES = {}, MYTRADES = {};
+const PAGE = 50;
+function multiB(projName) { const p = META.projects.find(x => x.name === projName); if (!p) return true; return new Set(META.locations.filter(l => l.project_id === p.id).map(l => l.building)).size > 1; }
+/* working days between two dates (inclusive), skipping the weekend days set in app_settings (0=Sun … 6=Sat) */
+function workDays(a, b) {
+  if (!a) return null; const we = new Set(String(SETTINGS.weekend_days ?? '0').split(',').filter(x => x !== '').map(Number));
+  let d = new Date(a + 'T00:00:00Z'); const e = new Date((b || today()) + 'T00:00:00Z'); let n = 0;
+  if (e < d) return 0; for (; d <= e; d = new Date(d.getTime() + 864e5)) if (!we.has(d.getUTCDay())) n++; return n;
+}
+const levelLabel = l => /^\d+$/.test(String(l)) ? String(+l) : l;                       // 03 -> 3 (B01, GF unchanged)
+const flatLabel = (lv, loc) => /^\d+$/.test(String(lv)) && /^\d+$/.test(String(loc)) ? String(+lv) + String(loc).padStart(2, '0') : levelLabel(lv) + ' · ' + loc;   // level 03, apartment 03 -> 303
+const locLabel = r => (multiB(r.plot_name) ? r.building + ' · ' : '') + flatLabel(r.level, r.location);
+
+function toast(m, ms = 3500) { const t = $('#toast'); t.textContent = m; t.classList.remove('hide'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.add('hide'), ms); }
+function errText(e) { return (e && (e.message || e.details || e.hint)) ? e.message || e.details : String(e); }
+
+/* ================= CSV ================= */
+const COLLABEL = { installed_qty: 'completed_qty' };
+function toCSV(rows, cols) {
+  const q = v => { v = v ?? ''; v = String(v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  return [cols.map(c => COLLABEL[c] || c).join(',')].concat(rows.map(r => cols.map(c => q(r[c])).join(','))).join('\r\n');
+}
+function download(name, text) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/csv' }));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+}
+function parseCSV(t) {
+  t = t.replace(/^﻿/, ''); const rows = []; let row = [], f = '', q = false;
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (q) { if (c === '"') { if (t[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === ',') { row.push(f); f = ''; }
+    else if (c === '\n') { row.push(f); rows.push(row); row = []; f = ''; }
+    else if (c !== '\r') f += c;
+  }
+  if (f !== '' || row.length) { row.push(f); rows.push(row); }
+  const head = (rows.shift() || []).map(h => h.trim().toLowerCase());
+  return rows.filter(r => r.some(x => x.trim() !== '')).map(r => Object.fromEntries(head.map((h, i) => [h, (r[i] ?? '').trim()])));
+}
+
+/* ================= start-up / login ================= */
+function init() {
+  const url = localStorage.fw_url || CFG.url, key = localStorage.fw_key || CFG.key;
+  if (!/^https?:\/\//.test(url) || /^YOUR_/.test(key)) return showConfig();
+  sb = supabase.createClient(url, key);
+  sb.auth.getSession().then(({ data }) => data.session ? start(data.session.user) : showLogin());
+  sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT') showLogin(); });
+}
+function showConfig() {
+  $('#app').innerHTML = `<div class="login card"><h2>Connect to Supabase</h2>
+  <p class="mut">Supabase → Project Settings → API. Use the <b>Project URL</b> and the <b>publishable (anon)</b> key. Never the secret key.</p>
+  <label>Project URL</label><input id="cu" placeholder="https://xxxx.supabase.co">
+  <label>Publishable key</label><input id="ck" placeholder="sb_publishable_... or eyJ...">
+  <p><button class="pri" id="cs">Save and continue</button></p></div>`;
+  $('#cs').onclick = () => { localStorage.fw_url = $('#cu').value.trim(); localStorage.fw_key = $('#ck').value.trim(); init(); };
+}
+function showPending(user) {
+  $('#app').innerHTML = `<div class="login card"><h2>Waiting for approval</h2>
+  <p>Your account <b>${esc(user.email)}</b> has been created, but an admin has not approved it yet.</p>
+  <p class="mut">Ask your admin to approve it, then press the button below.</p>
+  <p class="bar"><button class="pri" id="pr">Check again</button><button id="lo">Sign out</button></p></div>`;
+  $('#pr').onclick = () => start(user); $('#lo').onclick = () => sb.auth.signOut();
+}
+function showLogin(msg) {
+  $('#app').innerHTML = `<div class="login card"><h2>Flat Wise Tracker</h2>
+  <label>Email</label><input id="em" type="email" autocomplete="username">
+  <label>Password</label><input id="pw" type="password" autocomplete="current-password">
+  <div id="lerr"></div>
+  <p class="bar"><button class="pri" id="si">Sign in</button><button id="su">Create account</button></p>
+  <p class="mut">New accounts must be approved by an admin before they can sign in to the data.</p>
+  <p><small><a href="#" id="rc">Change Supabase connection</a></small></p></div>`;
+  if (msg) $('#lerr').innerHTML = `<div class="okmsg">${esc(msg)}</div>`;
+  const go = async signup => {
+    const email = $('#em').value.trim(), password = $('#pw').value;
+    const r = signup ? await sb.auth.signUp({ email, password }) : await sb.auth.signInWithPassword({ email, password });
+    if (r.error) return $('#lerr').innerHTML = `<div class="err">${esc(r.error.message)}</div>`;
+    if (!r.data.session) return $('#lerr').innerHTML = `<div class="okmsg">Account created. Confirm your email if asked, then sign in. An admin must approve your account before you can see any data.</div>`;
+    start(r.data.user);
+  };
+  $('#si').onclick = () => go(false); $('#su').onclick = () => go(true);
+  $('#pw').onkeydown = e => { if (e.key === 'Enter') go(false); };
+  $('#rc').onclick = e => { e.preventDefault(); delete localStorage.fw_url; delete localStorage.fw_key; showConfig(); };
+}
+
+async function start(user) {
+  ME = user;
+  $('#app').innerHTML = '<div class="login"><p class="mut">Loading…</p></div>';
+  try {
+    const me = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
+    if (me.error) throw me.error;
+    if (!me.data?.approved) return showPending(user);
+    const [pr, ut, pf, st, projects, trades, steps, acts, locs] = await Promise.all([
+      Promise.resolve(me),
+      sb.from('user_trades').select('*').eq('user_id', user.id),
+      sb.from('profiles').select('id,full_name,email,role,approved'),
+      sb.from('app_settings').select('*'),
+      sb.from('projects').select('*').order('name'),
+      sb.from('trades').select('*').order('name'),
+      sb.from('steps').select('*').order('sort_order'),
+      sb.from('activities').select('id,code,description,uom,weight_in_item,sort_order,item:items(id,code,trade:trades(id,name))').order('code'),
+      fetchAll(() => sb.from('locations').select('id,project_id,building,level,location,unit_type').order('id'))
+    ]);
+    for (const r of [pr, ut, pf, st, projects, trades, steps, acts]) if (r.error) throw r.error;
+    SETTINGS = Object.fromEntries((st.data || []).map(x => [x.key, x.value]));
+    PROFILE = pr.data || { role: 'viewer' };
+    MYTRADES = Object.fromEntries((ut.data || []).map(x => [x.trade_id, x]));
+    PROFILES = Object.fromEntries((pf.data || []).map(x => [x.id, x]));
+    META = { projects: projects.data, trades: trades.data, steps: steps.data, locations: locs,
+      activities: acts.data.filter(a => canViewTrade(a.item?.trade?.id)).map(a => ({ id: a.id, code: a.code, description: a.description, uom: a.uom, w: Number(a.weight_in_item ?? 1), ord: Number(a.sort_order || 0), trade: a.item?.trade?.name, item: a.item?.code, item_id: a.item?.id })) };
+  } catch (e) {
+    $('#app').innerHTML = `<div class="login card"><h2>Could not load</h2><div class="err">${esc(errText(e))}</div>
+    <p class="mut">If it says a table does not exist, run the SQL files in order (00_reset, 01_schema, 02_seed, 03_marble_quantities).</p><button id="lo">Sign out</button></div>`;
+    $('#lo').onclick = () => sb.auth.signOut(); return;
+  }
+  shell(); loadLA();
+}
+let SETTINGS = {};
+const bulkMax = () => +SETTINGS.bulk_max_steps || 300;
+const isAdmin = () => PROFILE.role === 'admin';
+const canViewTrade = id => isAdmin() || !!(MYTRADES[id] && (MYTRADES[id].can_view || MYTRADES[id].can_edit || MYTRADES[id].can_approve));
+const canEditTrade = id => isAdmin() || (PROFILE.role === 'editor' && !!MYTRADES[id]?.can_edit);
+const canApproveTrade = id => isAdmin() || !!MYTRADES[id]?.can_approve;
+
+/* ================= shell and tabs ================= */
+const TABS = [['dash', 'Dashboard'], ['tracker', 'Tracker'], ['matrix', 'Matrix'], ['io', 'Import / Export'], ['setup', 'Setup']];
+let TAB = 'dash';
+function shell() {
+  const tabs = TABS.filter(t => !['setup', 'io'].includes(t[0]) || isAdmin());
+  $('#app').innerHTML = `<header><span class="brand">🏗 Flat Wise Tracker</span><nav>${tabs.map(t => `<button data-t="${t[0]}">${t[1]}</button>`).join('')}</nav><span class="sp"></span>
+  <span class="who">${esc(PROFILE.full_name || ME.email)} · ${esc(PROFILE.role)}</span><button id="lo">Sign out</button></header>
+  <div class="mobnav">${tabs.map(t => `<button data-t="${t[0]}">${t[1].split(' ')[0]}</button>`).join('')}</div>
+  <main><div id="fb"></div><div id="view"></div></main>`;
+  $$('[data-t]').forEach(b => b.onclick = () => setTab(b.dataset.t));
+  $('#lo').onclick = () => sb.auth.signOut();
+  renderFilters(); setTab('dash');
+}
+function setTab(t) {
+  TAB = t; $$('[data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  $('#fb').classList.toggle('hide', t === 'io' || t === 'setup');
+  refresh();
+}
+let rt; function refresh(delay = 0) { clearTimeout(rt); rt = setTimeout(() => ({ dash: renderDash, tracker: renderTracker, matrix: renderMatrix, io: renderIO, setup: renderSetup }[TAB])(), delay); }
+
+/* ================= filters (multi-select) ================= */
+const FILTERS = [
+  { k: 'project', label: 'Project', col: 'plot_name' }, { k: 'trade', label: 'Trade', col: 'trade' },
+  { k: 'activity', label: 'Activity', col: 'activity' }, { k: 'step', label: 'Step', col: 'step_code' },
+  { k: 'building', label: 'Building', col: 'building' }, { k: 'level', label: 'Level', col: 'level' },
+  { k: 'location', label: 'Flat / Location', col: 'location' },
+  { k: 'unit', label: 'Type (CA, 1BR…)', col: 'unit_type' }];
+const VIEWKEYS = {
+  v_tracker: ['project', 'trade', 'activity', 'step', 'building', 'level', 'location', 'unit'],
+  v_flat_activity: ['project', 'trade', 'activity', 'building', 'level', 'location', 'unit'],
+  v_activity_summary: ['project', 'trade', 'activity', 'building'],
+  v_step_summary: ['project', 'trade', 'activity', 'step', 'building'],
+  v_level_progress: ['project', 'trade', 'building', 'level'],
+  v_last_update: ['project', 'trade', 'building'],
+  v_matrix: ['project', 'trade', 'activity', 'building', 'level', 'location', 'unit']
+};
+const F = Object.fromEntries(FILTERS.map(f => [f.k, new Set()])); let READY = false, RESP = '';
+/* Locations that match the other selected filters (project, building, level, trade/activity).
+   `skip` leaves out the filter of the list being opened, so its own choices stay visible. */
+function selActIds() {
+  const codes = F.activity.size ? F.activity : F.trade.size ? new Set(META.activities.filter(a => F.trade.has(a.trade)).map(a => a.code)) : null;
+  return codes ? new Set(META.activities.filter(a => codes.has(a.code)).map(a => a.id)) : null;
+}
+function poolLocs(skip) {
+  const pn = new Map(META.projects.map(p => [p.id, p.name])), ids = selActIds(), by = META.laBy;
+  return META.locations.filter(l =>
+    (!F.project.size || F.project.has(pn.get(l.project_id))) &&
+    (skip === 'building' || !F.building.size || F.building.has(l.building)) &&
+    (skip === 'level' || !F.level.size || F.level.has(l.level)) &&
+    (skip === 'unit' || !F.unit.size || F.unit.has(l.unit_type)) &&
+    (!ids || !by || [...(by.get(l.id) || [])].some(a => ids.has(a))));
+}
+function pruneFilters() {
+  for (const k of ['building', 'level', 'location', 'unit']) {
+    const ok = new Set(options(k).map(o => o.v));
+    for (const v of [...F[k]]) if (!ok.has(v)) F[k].delete(v);
+  }
+}
+function refreshLabels() {
+  $$('.ms').forEach(m => { const kk = m.dataset.k, f = FILTERS.find(x => x.k === kk), b = m.firstElementChild; b.className = F[kk].size ? 'act' : ''; b.textContent = f.label + (F[kk].size ? ' (' + F[kk].size + ')' : '') + ' ▾'; });
+}
+async function loadLA() {
+  try {
+    const rows = await fetchAll(() => sb.from('location_activities').select('location_id,activity_id').order('id'));
+    const m = new Map(); for (const r of rows) { if (!m.has(r.location_id)) m.set(r.location_id, new Set()); m.get(r.location_id).add(r.activity_id); }
+    META.laBy = m;
+  } catch (e) { /* filters still work, just without the activity link */ }
+}
+function options(k) {
+  const L = META.locations, uniq = a => [...new Set(a)];
+  switch (k) {
+    case 'project': return META.projects.map(p => ({ v: p.name, t: p.name }));
+    case 'trade': return META.trades.filter(t => canViewTrade(t.id)).map(t => ({ v: t.name, t: t.name }));
+    case 'activity': return META.activities.filter(a => !F.trade.size || F.trade.has(a.trade)).map(a => ({ v: a.code, t: a.code }));
+    case 'step': return META.steps.map(s => ({ v: s.code, t: s.code + ' – ' + s.name }));
+    case 'building': return uniq(poolLocs('building').map(l => l.building)).sort(natural).map(v => ({ v, t: v }));
+    case 'level': return uniq(poolLocs('level').map(l => l.level)).sort(natural).map(v => ({ v, t: levelLabel(v) }));
+    case 'unit': return uniq(poolLocs('unit').map(l => l.unit_type).filter(Boolean)).sort(natural).map(v => ({ v, t: v }));
+    case 'location': return uniq(poolLocs('location').map(l => l.location)).sort(natural).map(v => ({ v, t: v }));
+    case 'status': return ['Ready', 'Waiting', 'In Progress', 'Issue', 'Completed'].map(v => ({ v, t: v }));
+  }
+}
+function renderFilters() {
+  const n = FILTERS.reduce((s, f) => s + F[f.k].size, 0) + (READY ? 1 : 0) + (RESP ? 1 : 0);
+  $('#fb').innerHTML = `<div class="fbar" id="fbox"><div class="row"><button id="ftog" class="mobonly">Filters${n ? ' (' + n + ')' : ''} ▾</button>
+  <button id="fclr">Clear all</button></div><div class="row fold" style="margin-top:8px">
+  ${FILTERS.map(f => `<div class="ms" data-k="${f.k}"><button class="${F[f.k].size ? 'act' : ''}">${f.label}${F[f.k].size ? ' (' + F[f.k].size + ')' : ''} ▾</button></div>`).join('')}
+  <input id="fresp" placeholder="Responsible contains…" style="max-width:190px" value="${esc(RESP)}"></div></div>`;
+  $('#ftog').onclick = () => $('#fbox').classList.toggle('open');
+  $('#fclr').onclick = () => { FILTERS.forEach(f => F[f.k].clear()); READY = false; RESP = ''; renderFilters(); changed(); };
+  $('#fresp').oninput = e => { RESP = e.target.value; changed(400); };
+  $$('.ms').forEach(el => el.firstElementChild.onclick = ev => { ev.stopPropagation(); openPanel(el); });
+  if (!$('#ftog').offsetParent) { /* desktop: hide toggle */ }
+}
+const style = document.createElement('style'); style.textContent = '.mobonly{display:none}@media(max-width:760px){.mobonly{display:inline-block}}'; document.head.appendChild(style);
+function changed(delay = 0) { SEL.clear(); PG = 0; refresh(delay); }
+function openPanel(el) {
+  const had = $('.panel', el); $$('.panel').forEach(p => p.remove()); if (had) return;
+  const k = el.dataset.k, opts = options(k), set = F[k];
+  const p = document.createElement('div'); p.className = 'panel'; p.onclick = e => e.stopPropagation();
+  p.innerHTML = `<div class="top"><input placeholder="Search…"><button data-a="all">All</button><button data-a="none">Clear</button></div><div class="list"></div>`;
+  const list = $('.list', p);
+  const draw = () => {
+    const q = $('input', p).value.toLowerCase();
+    list.innerHTML = opts.filter(o => o.t.toLowerCase().includes(q)).map(o => `<label><input type="checkbox" value="${esc(o.v)}" ${set.has(o.v) ? 'checked' : ''}>${esc(o.t)}</label>`).join('') || '<div class="mut" style="padding:10px">No options</div>';
+  };
+  draw(); $('input', p).oninput = draw;
+  list.onchange = e => { e.target.checked ? set.add(e.target.value) : set.delete(e.target.value); updBtn(); };
+  p.onclick = e => {
+    e.stopPropagation(); const a = e.target.dataset.a; if (!a) return;
+    const q = $('input', p).value.toLowerCase();
+    opts.filter(o => o.t.toLowerCase().includes(q)).forEach(o => a === 'all' ? set.add(o.v) : set.delete(o.v));
+    draw(); updBtn();
+  };
+  const updBtn = () => { const b = el.firstElementChild, f = FILTERS.find(x => x.k === k); b.className = set.size ? 'act' : ''; b.textContent = f.label + (set.size ? ' (' + set.size + ')' : '') + ' ▾'; if (k === 'trade') { for (const c of [...F.activity]) if (!META.activities.find(a => a.code === c && (!F.trade.size || F.trade.has(a.trade)))) F.activity.delete(c); } if (k !== 'location') { pruneFilters(); refreshLabels(); } changed(350); };
+  el.appendChild(p);
+}
+document.addEventListener('click', e => { if (!e.target.closest('.ms')) $$('.panel').forEach(p => p.remove()); });
+
+function applyF(q, view) {
+  const keys = VIEWKEYS[view];
+  for (const f of FILTERS) if (keys.includes(f.k) && F[f.k].size) q = q.in(f.col, [...F[f.k]]);
+  if (view === 'v_tracker') { if (RESP.trim()) q = q.ilike('responsible_party', '%' + RESP.trim().replace(/[%,]/g, '') + '%'); }
+  return q;
+}
+async function fetchAll(mk, cap = 20000) {
+  // first page alone, then pages in parallel waves (much faster than one request after another)
+  const out = [], W = 6; let from = 0, wave = 1;
+  while (from < cap) {
+    const jobs = []; for (let j = 0; j < wave && from + j * 1000 < cap; j++) jobs.push(mk().range(from + j * 1000, from + j * 1000 + 999));
+    const res = await Promise.all(jobs); let short = false;
+    for (const r of res) {
+      if (r.error) { if (r.error.code === 'PGRST103' || r.status === 416) { short = true; continue; } throw r.error; }
+      out.push(...r.data); if (r.data.length < 1000) short = true;
+    }
+    if (short) break; from += wave * 1000; wave = W;
+  }
+  return out;
+}
+const viewEl = () => $('#view');
+const failView = e => { viewEl().innerHTML = `<div class="err">${esc(errText(e))}</div>`; };
+const bar = p => `<div class="pb"><i style="width:${Math.min(100, p || 0)}%"></i><u>${fmt(p, 1)}%</u></div>`;
+const heat = p => p == null ? '#f3f4f6' : `hsl(${Math.round(p * 1.2)},62%,${88 - p * 0.18}%)`;
+
+/* ================= dashboard ================= */
+/* ---------- steps-by-date histogram (dashboard) ---------- */
+let HIST = { rows: null, ev: 'finish', by: 'week' };
+const STEPCOL = ['#2f6fdb', '#f08c2b', '#2aa876', '#8d5fd3', '#d94f70', '#3fb4c8', '#a8a23a', '#7a869a'];
+function histBuckets(rows, ev, by) {
+  const key = ev === 'finish' ? 'finish_date' : 'start_date', D = s => new Date(s + 'T00:00:00Z'), iso = d => d.toISOString().slice(0, 10);
+  const bk = s => { if (by === 'day') return s; const d = D(s); if (by === 'month') return s.slice(0, 7); const wd = (d.getUTCDay() + 6) % 7; return iso(new Date(d.getTime() - wd * 864e5)); };
+  const next = k => { if (by === 'day') return iso(new Date(D(k).getTime() + 864e5)); if (by === 'week') return iso(new Date(D(k).getTime() + 7 * 864e5)); const [y, m] = k.split('-').map(Number); return m === 12 ? (y + 1) + '-01' : y + '-' + String(m + 1).padStart(2, '0'); };
+  const data = new Map(), steps = new Map();
+  rows.forEach(r => { const d = r[key]; if (!d) return; steps.set(r.step_code, r.step_order); const k = bk(d), o = data.get(k) || {}; o[r.step_code] = (o[r.step_code] || 0) + 1; data.set(k, o); });
+  if (!data.size) return { keys: [], data, steps: [] };
+  const ks = [...data.keys()].sort(), keys = []; for (let k = ks[0], i = 0; k <= ks[ks.length - 1] && i < 800; k = next(k), i++) keys.push(k);
+  return { keys, data, steps: [...steps.entries()].sort((a, b) => a[1] - b[1]).map(x => x[0]) };
+}
+function drawHist() {
+  const el = $('#hist'); if (!el) return;
+  const { rows, ev, by } = HIST, { keys, data, steps } = histBuckets(rows, ev, by);
+  const btn = (k, v, t, cur) => `<button data-h${k}="${v}" class="${v === cur ? 'pri' : ''}">${t}</button>`;
+  const head = `<div class="bar"><h2 style="margin:0">Steps progress by date</h2><span class="sp"></span><span class="mut">Count</span>${btn('e', 'finish', 'Steps finished', ev)}${btn('e', 'start', 'Steps started', ev)}<span class="mut" style="margin-left:8px">Per</span>${btn('b', 'day', 'Day', by)}${btn('b', 'week', 'Week', by)}${btn('b', 'month', 'Month', by)}</div>`;
+  if (!keys.length) { el.innerHTML = head + '<p class="mut">No dates entered yet for these filters.</p>'; }
+  else {
+    const tot = keys.map(k => steps.reduce((t, s) => t + (data.get(k)?.[s] || 0), 0)), max = Math.max(...tot), nice = (() => { const raw = max / 4, m = Math.pow(10, Math.floor(Math.log10(raw || 1))), f = raw / m; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * m; })(), top = nice * Math.max(1, Math.ceil(max / nice));
+    const bw = Math.max(10, Math.min(46, Math.floor(1100 / keys.length))), gap = Math.max(2, Math.round(bw * .2)), L = 44, B = 46, H = 230, W = L + keys.length * (bw + gap) + 10, ph = H - B - 10;
+    const every = Math.max(1, Math.ceil(46 / (bw + gap))), lbl = k => by === 'month' ? k : k.slice(5).split('-').reverse().join('/');
+    let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Steps by date">`;
+    for (let i = 0, n = Math.round(top / nice); i <= n; i++) { const v = nice * i, y = 10 + ph - v / top * ph; svg += `<line x1="${L}" x2="${W - 6}" y1="${y}" y2="${y}" stroke="#e5e8ee"/><text x="${L - 6}" y="${y + 4}" text-anchor="end" font-size="11" fill="#667085">${fmt(v, 0)}</text>`; }
+    keys.forEach((k, i) => { let y = 10 + ph; const x = L + i * (bw + gap) + gap / 2, o = data.get(k) || {};
+      steps.forEach((s, si) => { const n = o[s] || 0; if (!n) return; const h = n / top * ph; y -= h; svg += `<rect x="${x}" y="${y}" width="${bw}" height="${h}" fill="${STEPCOL[si % STEPCOL.length]}" rx="1"><title>${esc(k)} · ${esc(s)}: ${n}</title></rect>`; });
+      if (tot[i] && bw >= 22) svg += `<text x="${x + bw / 2}" y="${y - 3}" text-anchor="middle" font-size="10" fill="#344054">${tot[i]}</text>`;
+      if (i % every === 0) svg += `<text x="${x + bw / 2}" y="${H - B + 14}" text-anchor="end" font-size="10" fill="#667085" transform="rotate(-45 ${x + bw / 2} ${H - B + 14})">${esc(lbl(k))}</text>`; });
+    svg += '</svg>';
+    el.innerHTML = head + `<div class="tw" style="max-height:none;overflow-x:auto">${svg}</div><div class="bar" style="gap:12px;flex-wrap:wrap">${steps.map((s, i) => `<span><i style="display:inline-block;width:11px;height:11px;border-radius:2px;background:${STEPCOL[i % STEPCOL.length]};vertical-align:-1px"></i> ${esc(s)}</span>`).join('')}<small class="mut">${by === 'week' ? 'Weeks start on Monday. ' : ''}Each bar counts steps by the ${ev === 'finish' ? 'finish' : 'start'} date entered in the tracker; hover a bar for the numbers. Follows the filters above.</small></div>`;
+  }
+  $$('[data-he]', el).forEach(b => b.onclick = () => { HIST.ev = b.dataset.he; drawHist(); });
+  $$('[data-hb]', el).forEach(b => b.onclick = () => { HIST.by = b.dataset.hb; drawHist(); });
+}
+async function loadHist() {
+  const el = $('#hist'); if (!el) return; el.innerHTML = '<p class="mut">Loading dates…</p>';
+  try { HIST.rows = await fetchAll(() => applyF(sb.from('v_tracker').select('step_code,step_order,start_date,finish_date'), 'v_tracker').or('finish_date.not.is.null,start_date.not.is.null').order('id'), 150000); drawHist(); }
+  catch (e) { if ($('#hist')) $('#hist').innerHTML = `<div class="err">${esc(errText(e))}</div>`; }
+}
+
+
+async function renderDash() {
+  viewEl().innerHTML = '<p class="mut">Loading…</p>';
+  try {
+    const deep = F.level.size || F.location.size;     // level / flat filters need row-level data
+    const [fa, sRows, lu] = await Promise.all([
+      fetchAll(() => applyF(sb.from('v_flat_activity').select('plot_name,building,level,location,trade,activity,uom,total_qty,overall_pct,steps,steps_done,any_overdue,planned_manhours,earned_manhours,actual_manhours'), 'v_flat_activity').order('plot_name'), 50000),
+      deep ? fetchAll(() => applyF(sb.from('v_tracker').select('step_code,step,step_order,pct'), 'v_tracker').order('id'), 100000)
+           : fetchAll(() => applyF(sb.from('v_step_summary').select('*'), 'v_step_summary').order('step_order')),
+      fetchAll(() => applyF(sb.from('v_last_update').select('*'), 'v_last_update').order('plot_name')).catch(() => [])]);
+    const lg = new Map();
+    lu.forEach(x => { const k = x.plot_name + '|' + x.trade + '|' + x.item_code; const o = lg.get(k) || { plot_name: x.plot_name, trade: x.trade, item: x.item_code, saved: null, site: null, st: 0, tot: 0 };
+      if (x.last_saved && (!o.saved || x.last_saved > o.saved)) o.saved = x.last_saved; if (x.last_site_date && (!o.site || x.last_site_date > o.site)) o.site = x.last_site_date; o.st += x.steps_started; o.tot += x.steps_total; lg.set(k, o); });
+    const LU = [...lg.values()].sort((a, b) => natural(a.plot_name, b.plot_name) || a.trade.localeCompare(b.trade) || a.item.localeCompare(b.item));
+    const ago = d => { if (!d) return ''; const n = Math.floor((Date.now() - new Date(d).getTime()) / 864e5); return n <= 0 ? 'today' : n + ' d ago'; };
+    const sum = (arr, f) => arr.reduce((t, x) => t + (Number(f(x)) || 0), 0);
+    // activity table: group flat-activities
+    const g = new Map();
+    fa.forEach(x => { const k = [x.plot_name, x.building, x.trade, x.activity, x.uom].join('|');
+      const o = g.get(k) || { plot_name: x.plot_name, building: x.building, trade: x.trade, activity: x.activity, uom: x.uom, n: 0, qty: 0, psum: 0, done: 0, over: 0, pm: 0, em: 0, am: 0 };
+      o.n++; o.qty += Number(x.total_qty) || 0; o.psum += Number(x.overall_pct) || 0; if (x.steps === x.steps_done) o.done++; if (x.any_overdue) o.over++;
+      o.pm += Number(x.planned_manhours) || 0; o.em += Number(x.earned_manhours) || 0; o.am += Number(x.actual_manhours) || 0; g.set(k, o); });
+    const a = [...g.values()].sort((x, y) => natural(x.plot_name, y.plot_name) || natural(x.building, y.building) || x.trade.localeCompare(y.trade) || x.activity.localeCompare(y.activity));
+    const n = fa.length, overall = n ? sum(fa, x => x.overall_pct) / n : 0;
+    // step table
+    const steps = {};
+    if (deep) sRows.forEach(x => { const o = steps[x.step_code] ||= { code: x.step_code, name: x.step, ord: x.step_order, items: 0, pctsum: 0, ns: 0, ip: 0, done: 0, overdue: 0 };
+      const p = Number(x.pct); o.items++; o.pctsum += p; p >= 100 ? o.done++ : p > 0 ? o.ip++ : o.ns++; });
+    else sRows.forEach(x => { const o = steps[x.step_code] ||= { code: x.step_code, name: x.step, ord: x.step_order, items: 0, pctsum: 0, ns: 0, ip: 0, done: 0, overdue: 0 };
+      o.items += x.items; o.pctsum += x.avg_pct * x.items; o.ns += x.waiting + x.ready; o.ip += x.in_progress + x.issues; o.done += x.completed; o.overdue += x.overdue; });
+    const sl = Object.values(steps).sort((x, y) => x.ord - y.ord);
+    // heat-map
+    const cells = {}, lv = new Set(), bl = new Set();
+    fa.forEach(x => { const key = x.level + '|' + x.building; const o = cells[key] ||= { n: 0, s: 0 }; o.n++; o.s += Number(x.overall_pct) || 0; lv.add(x.level); bl.add(x.building); });
+    const B = [...bl].sort(natural), LV = [...lv].sort(natural).reverse();
+    viewEl().innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><b>${fmt(overall, 1)}%</b><span>Overall progress (avg of location-activities)</span></div>
+      <div class="kpi"><b>${fmt(n, 0)}</b><span>Location-activities tracked</span></div>
+      <div class="kpi"><b>${fmt(sum(a, x => x.done), 0)}</b><span>Fully completed</span></div>
+      <div class="kpi"><b style="color:${sum(a, x => x.over) ? 'var(--bad)' : 'inherit'}">${fmt(sum(a, x => x.over), 0)}</b><span>Overdue</span></div>
+      <div class="kpi"><b>${fmt(sum(a, x => x.pm), 0)}</b><span>Planned manhours</span></div>
+      <div class="kpi"><b>${fmt(sum(a, x => x.em), 0)}</b><span>Earned manhours</span></div>
+      <div class="kpi"><b>${fmt(sum(a, x => x.am), 0)}</b><span>Actual manhours</span></div></div>
+    <div class="card"><h2>Where is the work stuck? (by step)</h2>
+      <div class="tw cardwrap" style="max-height:none"><table><thead><tr><th>Step</th><th>Avg %</th><th>Not started</th><th>In progress</th><th>Completed</th><th>Overdue</th></tr></thead><tbody>
+      ${sl.map(x => `<tr><td><b>${esc(x.code)}</b> <small>${esc(x.name)}</small></td><td style="min-width:130px">${bar(x.pctsum / (x.items || 1))}</td><td>${x.ns}</td><td>${x.ip}</td><td>${x.done}</td><td>${x.overdue || ''}</td></tr>`).join('') || '<tr><td colspan=6 class="mut">No data for these filters.</td></tr>'}
+      </tbody></table></div></div>
+    <div class="card" id="hist"></div>
+    <div class="card"><h2>Last update (project · item)</h2><div class="tw cardwrap" style="max-height:340px"><table class="cards"><thead><tr><th>Project</th><th>Trade</th><th>Item</th><th>Last saved</th><th>Last site date</th><th>Started steps</th></tr></thead><tbody>
+      ${LU.map(x => `<tr><td data-l="Project">${esc(x.plot_name)}</td><td data-l="Trade">${esc(x.trade)}</td><td data-l="Item"><b>${esc(x.item)}</b></td><td data-l="Last saved">${x.saved ? new Date(x.saved).toLocaleDateString() + ' <small>' + ago(x.saved) + '</small>' : '<span class="mut">no update yet</span>'}</td><td data-l="Last site date">${x.site ? esc(x.site) + ' <small>' + ago(x.site) + '</small>' : ''}</td><td data-l="Started">${x.st} / ${x.tot}</td></tr>`).join('') || '<tr><td colspan=6 class="mut">No data.</td></tr>'}
+      </tbody></table></div><small>Last saved = last time someone saved progress on the item. Last site date = latest start or finish date entered.</small></div>
+    <div class="card"><h2>Floor heat-map</h2><div class="tw" style="max-height:none"><table class="hm"><thead><tr><th>Level</th>${B.map(b => `<th>${esc(b)}</th>`).join('')}</tr></thead><tbody>
+      ${LV.map(v => `<tr><td><b>${esc(levelLabel(v))}</b></td>${B.map(b => { const o = cells[v + '|' + b]; const p = o ? o.s / o.n : null; return `<td style="background:${heat(p)}">${p == null ? '' : fmt(p, 0) + '%'}</td>`; }).join('')}</tr>`).join('')}
+      </tbody></table></div></div>
+    <div class="card"><h2>By activity</h2><div class="tw cardwrap"><table class="cards"><thead><tr><th>Project / Bldg</th><th>Trade</th><th>Activity</th><th>Locations</th><th>Total qty</th><th>Progress</th><th>Done</th><th>Overdue</th><th>Manhrs plan / earned / actual</th></tr></thead><tbody>
+      ${a.map(x => `<tr><td data-l="Bldg">${esc(x.plot_name)}${multiB(x.plot_name) ? ' · ' + esc(x.building) : ''}</td><td data-l="Trade">${esc(x.trade)}</td><td data-l="Activity"><b>${esc(x.activity)}</b></td><td data-l="Locations">${x.n}</td><td data-l="Total qty">${fmt(x.qty, 1)} ${esc(x.uom)}</td><td class="full" style="min-width:110px">${bar(x.psum / x.n)}</td><td data-l="Done">${x.done}</td><td data-l="Overdue">${x.over || ''}</td><td data-l="Manhours" class="full">${fmt(x.pm, 0)} / ${fmt(x.em, 0)} / ${fmt(x.am, 0)}</td></tr>`).join('') || '<tr><td colspan=9 class="mut">No data.</td></tr>'}
+      </tbody></table></div><small>All filters apply to the dashboard. "Locations" counts apartments and common areas (e.g. Lift Lobby) together; filter on Flat / Location to include or exclude them.</small></div>`;
+    loadHist();
+  } catch (e) { failView(e); }
+}
+
+/* ================= tracker ================= */
+let PG = 0, ROWS = [], TOTAL = 0; const SEL = new Map();   // id -> {la, ord}
+const TR_COLS = '*';
+async function renderTracker() {
+  viewEl().innerHTML = '<p class="mut">Loading…</p>';
+  try {
+    const { data, error, count } = await applyF(sb.from('v_tracker').select(TR_COLS, { count: 'exact' }), 'v_tracker')
+      .order('building').order('level').order('location').order('activity').order('step_order').order('id').range(PG * PAGE, PG * PAGE + PAGE - 1);
+    if (error) throw error; ROWS = data; TOTAL = count || 0; drawTracker();
+  } catch (e) { failView(e); }
+}
+function drawTracker() {
+  const pages = Math.max(1, Math.ceil(TOTAL / PAGE));
+  viewEl().innerHTML = `<div class="bar" style="margin-bottom:8px"><b>${fmt(TOTAL, 0)}</b> <span class="mut">step rows match</span><span class="sp"></span>
+    <button id="selpg">Select this page</button><button id="selall" ${TOTAL ? '' : 'disabled'}>Select all ${fmt(TOTAL, 0)} matching</button></div>
+  <div class="tw cardwrap"><table class="cards"><thead><tr><th></th><th>Location</th><th>Activity</th><th>Step</th><th>Pred. %</th><th style="min-width:120px">Completion</th><th>Start</th><th>Finish</th><th>Working days</th><th>Completed / Total</th></tr></thead><tbody>
+  ${ROWS.map(r => `<tr class="r" data-id="${r.id}"><td><input type="checkbox" class="sc" ${SEL.has(r.id) ? 'checked' : ''}></td>
+   <td data-l="Location"><b>${esc(locLabel(r))}</b> <small>${esc(r.unit_type || '')}</small></td>
+   <td data-l="Activity">${esc(r.activity)}</td><td data-l="Step">${esc(r.step_code)} ${r.locked ? '🔒' : ''}${r.is_overdue ? ' <span title="overdue">⏰</span>' : ''}</td>
+   <td data-l="Pred %">${r.pred_count ? fmt(r.pred_min_pct, 0) + '%' : '–'}</td>
+   <td class="full">${bar(r.pct)}</td><td data-l="Start">${r.start_date || ''}</td><td data-l="Finish">${r.finish_date || ''}</td><td data-l="Working days">${r.start_date ? workDays(r.start_date, r.finish_date) : ''}</td>
+   <td data-l="Qty">${fmt(r.installed_qty, 2)} / ${fmt(r.total_qty, 2)} ${esc(r.uom)}</td></tr>`).join('') || '<tr><td colspan=10 class="mut">Nothing matches the filters.</td></tr>'}
+  </tbody></table></div>
+  <div class="pg"><button id="pv" ${PG ? '' : 'disabled'}>◀ Prev</button><span class="mut">Page ${PG + 1} of ${pages}</span><button id="nx" ${PG + 1 >= pages ? 'disabled' : ''}>Next ▶</button></div>
+  <div id="selbar"></div>`;
+  $('#pv').onclick = () => { PG--; renderTracker(); }; $('#nx').onclick = () => { PG++; renderTracker(); };
+  $('#selpg').onclick = () => { ROWS.forEach(r => SEL.set(r.id, { la: r.la_id, ord: r.step_order })); drawTracker(); };
+  $('#selall').onclick = selectAllMatching;
+  $$('tr.r').forEach(tr => {
+    tr.onclick = e => { if (e.target.classList.contains('sc')) return; openEdit(+tr.dataset.id); };
+    $('.sc', tr).onchange = e => { const r = ROWS.find(x => x.id === +tr.dataset.id); e.target.checked ? SEL.set(r.id, { la: r.la_id, ord: r.step_order }) : SEL.delete(r.id); drawSelBar(); };
+  });
+  drawSelBar();
+}
+async function selectAllMatching() {
+  const b = $('#selall'); b.disabled = true; b.textContent = 'Selecting…';
+  try {
+    const all = await fetchAll(() => applyF(sb.from('v_tracker').select('id,la_id,step_order'), 'v_tracker').order('id'), 20000);
+    all.forEach(r => SEL.set(r.id, { la: r.la_id, ord: r.step_order }));
+    if (all.length >= 20000) toast('Selection capped at 20,000 rows');
+  } catch (e) { toast(errText(e)); }
+  drawTracker();
+}
+function drawSelBar() {
+  const el = $('#selbar'); if (!el) return;
+  el.innerHTML = SEL.size ? `<div class="sel-bar"><b>${fmt(SEL.size, 0)} selected</b><span class="sp"></span><button class="pri" id="bulk">Bulk update…</button><button id="selclr">Clear</button></div>` : '';
+  if (SEL.size) { $('#bulk').onclick = openBulk; $('#selclr').onclick = () => { SEL.clear(); drawTracker(); }; }
+  $$('tr.r').forEach(tr => $('.sc', tr).checked = SEL.has(+tr.dataset.id));
+}
+
+/* ---- dialogs ---- */
+function dlg(html) { const d = $('#dlg'); d.innerHTML = `<div class="dlg">${html}</div>`; if (!d.open) d.showModal(); return d; }
+function closeDlg() { const d = $('#dlg'); if (d.open) d.close(); }
+function askText(title, label) {
+  return new Promise(res => {
+    const d = dlg(`<h2>${esc(title)}</h2><label>${esc(label)}</label><input id="at"><div class="bar" style="margin-top:12px"><button class="pri" id="ok">OK</button><button id="no">Cancel</button></div>`);
+    $('#ok').onclick = () => { const v = $('#at').value.trim(); if (!v) return $('#at').focus(); closeDlg(); res(v); };
+    $('#no').onclick = () => { closeDlg(); res(null); };
+  });
+}
+const DATEF = [['start_date', 'Start date'], ['finish_date', 'Finish date'], ['planned_start_date', 'Planned start'], ['expected_completion_date', 'Expected completion']];
+async function openEdit(id) {
+  let r = ROWS.find(x => x.id === id) || MXROWS.find(x => x.id === id);
+  if (!r) { const q = await sb.from('v_tracker').select('*').eq('id', id).maybeSingle(); r = q.data; }
+  if (!r) return;
+  const edit = canEditTrade(r.trade_id), lockedFull = r.locked, adm = isAdmin();
+  const [h, w] = await Promise.all([
+    sb.from('audit_log').select('*').eq('table_name', 'location_activity_steps').eq('record_id', id).order('changed_at', { ascending: false }).limit(15),
+    sb.from('step_warnings').select('*').eq('step_id', id).order('created_at', { ascending: false }).limit(5)]);
+  const hist = (h.data || []).map(x => {
+    const ch = Object.keys(x.new_data || {}).filter(k => !['updated_at', 'updated_by'].includes(k)).map(k => `${k}: ${x.old_data?.[k] ?? '∅'} → ${x.new_data[k] ?? '∅'}`).join(', ');
+    return `<div class="hist"><b>${esc(PROFILES[x.changed_by]?.full_name || PROFILES[x.changed_by]?.email || 'system')}</b> <small>${new Date(x.changed_at).toLocaleString()}</small><br>${esc(ch)}${x.reason ? `<br><i>${esc(x.reason)}</i>` : ''}</div>`;
+  }).join('') || '<small>No changes yet.</small>';
+  const d = dlg(`<form id="ef"><h2>${esc(r.activity)} · ${esc(r.step)} ${r.locked ? '🔒' : ''}</h2>
+   <div class="mut">${esc(r.plot_name)} · ${esc(locLabel(r))} ${esc(r.unit_type || '')}<br>Total ${fmt(r.total_qty, 3)} ${esc(r.uom)} · Completed ${fmt(r.installed_qty, 3)} · Balance ${fmt(r.balance_qty, 3)}<br>
+   ${r.start_date ? `Working days: <b>${workDays(r.start_date, r.finish_date)}</b>${r.finish_date ? '' : ' so far'}<br>` : ''}Predecessors: ${r.pred_count ? `${r.pred_count} (lowest completion ${fmt(r.pred_min_pct, 0)}%${r.pred_not_started ? ', ' + r.pred_not_started + ' not started' : ''})` : 'none'}</div>
+   ${r.locked ? '<div class="warnmsg">This step reached 100% and is locked. Only manhours, reference, issues and responsible can change' + (adm ? ' (or tick Admin correction below).' : '. Ask an admin to correct it.') + '</div>' : ''}
+   ${!edit ? '<div class="warnmsg">You can view this trade but not edit it.</div>' : ''}
+   ${r.requires_approval && !canApproveTrade(r.trade_id) ? '<div class="warnmsg">Only an approver (engineer) can take this step to 100%.</div>' : ''}
+   ${adm && lockedFull ? '<label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="corr"> Admin correction (reason required)</label><div id="rsn" class="hide"><label>Reason</label><input id="reason"></div>' : ''}
+   <div class="g2"><div><label>Completion %</label><input name="pct" type="number" min="0" max="100" step="any" value="${r.pct ?? 0}" class="lk"></div><div></div>
+   ${DATEF.map(([k, t]) => `<div><label>${t}</label><input name="${k}" type="date" ${k === 'start_date' || k === 'finish_date' ? `max="${today()}"` : ''} value="${r[k] || ''}" class="${k === 'start_date' || k === 'finish_date' ? 'lk' : 'lk2'}"></div>`).join('')}
+   <div><label>Reference (MIR/WIR no.)</label><input name="reference" value="${esc(r.reference || '')}"></div><div><label>Responsible</label><input name="responsible_party" value="${esc(r.responsible_party || '')}"></div>
+   <div><label>Actual manhours</label><input name="actual_manhours" type="number" min="0" step="any" value="${r.actual_manhours ?? 0}"></div>
+   <div><label>Planned manhours (override)</label><input name="planned_manhours_override" type="number" min="0" step="any" value="${r.planned_manhours ?? ''}" class="lk2"></div></div>
+   <label>Issues / remarks</label><textarea name="issues_description" rows="2">${esc(r.issues_description || '')}</textarea>
+   <div class="bar" style="margin:8px 0"><button type="button" id="st">Start today</button><button type="button" id="ct">Complete today</button></div>
+   <div id="ee"></div>
+   <div class="bar"><button class="pri" id="sv" ${edit || adm ? '' : 'disabled'}>Save</button><button type="button" id="cl">Close</button></div>
+   ${(w.data || []).length ? '<h3>Warnings</h3>' + w.data.map(x => `<div class="warnmsg">${esc(x.message)}</div>`).join('') : ''}
+   <h3>History</h3>${hist}</form>`);
+  const f = $('#ef'), setLock = () => {
+    const corr = $('#corr')?.checked;
+    $$('.lk', f).forEach(i => i.disabled = !edit && !corr ? true : (lockedFull && !corr));
+    $$('.lk2', f).forEach(i => i.disabled = !edit && !corr ? true : (lockedFull && !corr));
+    ['reference', 'responsible_party', 'actual_manhours', 'issues_description'].forEach(n => f[n].disabled = !edit && !corr);
+    $('#st').disabled = $('#ct').disabled = !edit && !corr || (lockedFull && !corr);
+    $('#rsn')?.classList.toggle('hide', !corr);
+  };
+  setLock(); $('#corr') && ($('#corr').onchange = setLock);
+  $('#cl').onclick = closeDlg;
+  $('#st').onclick = () => { if (!f.start_date.value) f.start_date.value = today(); if (!+f.pct.value) f.pct.value = 1; };
+  $('#ct').onclick = () => { f.pct.value = 100; if (!f.start_date.value) f.start_date.value = today(); f.finish_date.value = today(); };
+  f.onsubmit = async ev => {
+    ev.preventDefault(); const ch = {}, orig = r;
+    const read = { pct: v => num(v), actual_manhours: v => num(v) ?? 0, planned_manhours_override: v => num(v) };
+    const baseOverride = r.planned_manhours;
+    for (const n of ['pct', 'start_date', 'finish_date', 'planned_start_date', 'expected_completion_date', 'reference', 'responsible_party', 'actual_manhours', 'planned_manhours_override', 'issues_description']) {
+      const el = f[n]; if (!el || el.disabled) continue;
+      let v = el.value.trim(); v = read[n] ? read[n](v) : (v === '' ? null : v);
+      const cur = n === 'planned_manhours_override' ? baseOverride : orig[n];
+      if (n === 'planned_manhours_override') { if (v === num(baseOverride)) continue; }
+      else if (String(v ?? '') !== String(cur ?? '') && !(typeof v === 'number' && Number(cur) === v)) { } else continue;
+      ch[n] = v;
+    }
+    if (!Object.keys(ch).length) return closeDlg();
+    $('#sv').disabled = true; $('#ee').innerHTML = '';
+    let err;
+    if ($('#corr')?.checked) {
+      const reason = $('#reason').value.trim(); if (!reason) { $('#ee').innerHTML = '<div class="err">Enter a reason for the correction.</div>'; $('#sv').disabled = false; return; }
+      err = (await sb.rpc('admin_correct_step', { p_id: id, p_changes: ch, p_reason: reason })).error;
+    } else {
+      const q = await sb.from('location_activity_steps').update(ch).eq('id', id).select('id');
+      err = q.error || (!q.data?.length ? { message: 'Nothing was saved. You may not have permission to edit this trade.' } : null);
+    }
+    if (err) { $('#ee').innerHTML = `<div class="err">${esc(errText(err))}</div>`; $('#sv').disabled = false; return; }
+    closeDlg(); toast('Saved'); refresh();
+  };
+}
+
+/* ---- bulk update ---- */
+function chunkIds() {
+  const items = [...SEL.entries()].map(([id, v]) => ({ id, ...v })).sort((a, b) => a.la - b.la || a.ord - b.ord);
+  const chunks = []; let cur = [], lastLa = null;
+  for (const it of items) { if (cur.length >= 300 && it.la !== lastLa) { chunks.push(cur); cur = []; } cur.push(it.id); lastLa = it.la; }
+  if (cur.length) chunks.push(cur); return chunks;
+}
+function openBulk() {
+  const d = dlg(`<form id="bf"><h2>Bulk update · ${fmt(SEL.size, 0)} rows</h2>
+  <div id="bsum" class="card" style="margin:6px 0"><small class="mut">Reading selection…</small></div>
+  <p class="mut">Only the fields you fill in are changed. The database checks every row against the rules (predecessors, 100% lock, dates, quantities, permissions). Rows that break a rule are skipped and listed — nothing is half-applied per row.</p>
+  <div class="g2"><div><label>Completion %</label><input name="pct" type="number" min="0" max="100" step="any" placeholder="leave blank = unchanged"></div><div></div>
+  <div><label>Start date</label><input name="start_date" type="date" max="${today()}"></div><div><label>Finish date</label><input name="finish_date" type="date" max="${today()}"></div>
+  <div><label>Planned start</label><input name="planned_start_date" type="date"></div><div><label>Expected completion</label><input name="expected_completion_date" type="date"></div>
+  <div><label>Responsible</label><input name="responsible_party"></div><div><label>Reference</label><input name="reference"></div></div>
+  <label>Issues / remarks</label><input name="issues_description">
+  <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" name="only_empty"> Set the start date only where it is empty</label>
+  <div class="bar" style="margin:8px 0"><button type="button" id="b0">Start today (%, if 0 → 1)</button><button type="button" id="b1">Complete today</button></div>
+  <label>Batch note (optional)</label><input name="note">
+  ${isAdmin() ? `<div style="margin-top:8px;padding:8px;border:1px solid var(--line,#ccc);border-radius:6px">
+   <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" name="corr"> <b>Admin correction</b> – also change completed / locked (100%) steps</label>
+   <input name="creason" placeholder="Reason (required, saved in the audit log)" style="display:none;margin-top:6px"></div>` : ''}
+  <div id="br"></div>
+  <div class="bar" style="margin-top:10px"><button type="button" id="bp">Preview</button><button class="pri" type="button" id="ba">Apply</button><button type="button" id="bc">Close</button></div></form>`);
+  const f = $('#bf');
+  $('#bc').onclick = closeDlg;
+  const over = SEL.size > bulkMax();
+  if (over) { $('#bsum').innerHTML = `<div class="err">${fmt(SEL.size, 0)} rows are selected. One bulk update may change at most <b>${bulkMax()}</b> rows. Narrow the filters or deselect rows, then try again.</div>`; $('#bp').disabled = $('#ba').disabled = true; }
+  else (async () => {
+    const q = await sb.from('v_tracker').select('plot_name,building,level,location,activity,step_code').in('id', [...SEL.keys()]);
+    if (q.error) return $('#bsum').innerHTML = `<small class="err">${esc(errText(q.error))}</small>`;
+    const u = k => [...new Set(q.data.map(r => r[k]))].sort(natural), L = (k, n = 12) => { const a = u(k); return esc(a.slice(0, n).join(', ')) + (a.length > n ? ` … (+${a.length - n})` : ''); };
+    if (!isAdmin() && SETTINGS.bulk_one_activity !== 'off' && u('activity').length > 1) {
+      $('#bsum').innerHTML = `<div class="err">You selected <b>${u('activity').length} activities</b> (${L('activity')}). Bulk update works on <b>one activity at a time</b>. Filter the Activity to a single one, select the rows again, then try again.</div>`;
+      $('#bp').disabled = $('#ba').disabled = true; return;
+    }
+    $('#bsum').innerHTML = `<table><tbody><tr><td><b>Project</b></td><td>${L('plot_name')}</td></tr><tr><td><b>Tower / building</b></td><td>${L('building')}</td></tr>
+     <tr><td><b>Levels</b></td><td>${L('level', 20)}</td></tr><tr><td><b>Flats / locations</b></td><td>${u('location').length}</td></tr>
+     <tr><td><b>Activities</b></td><td>${L('activity')}</td></tr><tr><td><b>Steps</b></td><td>${L('step_code')}</td></tr>
+     <tr><td><b>Rows</b></td><td>${fmt(SEL.size, 0)} of max ${bulkMax()}</td></tr></tbody></table>`;
+  })();
+  if (f.corr) f.corr.onchange = () => { f.creason.style.display = f.corr.checked ? '' : 'none'; };
+  $('#b0').onclick = () => { f.start_date.value = today(); f.only_empty.checked = true; if (!+f.pct.value) f.pct.value = 1; };
+  $('#b1').onclick = () => { f.pct.value = 100; f.start_date.value = today(); f.only_empty.checked = true; f.finish_date.value = today(); };
+  const changes = () => {
+    const c = {};
+    for (const n of ['pct', 'start_date', 'finish_date', 'planned_start_date', 'expected_completion_date', 'responsible_party', 'reference', 'issues_description']) {
+      const v = f[n].value.trim(); if (v === '') continue;
+      if (n === 'start_date' && f.only_empty.checked) c.start_date_if_empty = v; else c[n] = n === 'pct' ? Number(v) : v;
+    }
+    return c;
+  };
+  const run = async dry => {
+    const c = changes(); if (!Object.keys(c).length) return $('#br').innerHTML = '<div class="err">Fill in at least one field.</div>';
+    const corr = !!(f.corr && f.corr.checked), reason = corr ? f.creason.value.trim() : '';
+    if (corr && !reason) return $('#br').innerHTML = '<div class="err">Enter the reason for the admin correction.</div>';
+    $('#bp').disabled = $('#ba').disabled = true; $('#br').innerHTML = '<p class="mut">Working…</p>';
+    let up = 0, sk = [], done = 0; const chunks = chunkIds();
+    try {
+      for (const ids of chunks) {
+        const upd = ids.map(id => ({ id, changes: c }));
+        const { data, error } = corr
+          ? await sb.rpc('admin_correct_steps', { p_updates: upd, p_reason: reason, p_dry_run: dry })
+          : await sb.rpc('apply_step_updates', { p_updates: upd, p_note: f.note.value.trim() || null, p_dry_run: dry });
+        if (error) throw error; up += data.updated; sk = sk.concat(data.skipped); done++;
+        $('#br').innerHTML = `<p class="mut">Working… ${done}/${chunks.length}</p>`;
+      }
+      $('#br').innerHTML = `<div class="${sk.length ? 'warnmsg' : 'okmsg'}"><b>${dry ? 'Preview: ' + up + ' would be updated' : up + ' updated'}</b>, ${sk.length} skipped.</div>` +
+        (sk.length ? `<div class="tw" style="max-height:220px"><table><tbody>${sk.slice(0, 200).map(x => `<tr><td>${esc(x.label || x.id)}</td><td>${esc(x.message)}</td></tr>`).join('')}</tbody></table></div>${sk.length > 200 ? '<small>First 200 shown.</small>' : ''}` : '');
+      if (!dry) { SEL.clear(); refresh(); toast(up + ' rows updated'); }
+    } catch (e) { $('#br').innerHTML = `<div class="err">${esc(errText(e))}${done ? '\n(' + done + ' chunk(s) were already applied before this error. Check Import / Export → batches.)' : ''}</div>`; }
+    $('#bp').disabled = $('#ba').disabled = false;
+  };
+  $('#bp').onclick = () => run(true);
+  $('#ba').onclick = () => { if (confirm((f.corr && f.corr.checked ? 'ADMIN CORRECTION incl. locked steps – apply to ' : 'Apply to ') + SEL.size + ' rows?')) run(false); };
+}
+
+/* ================= matrix (all activities x steps) ================= */
+let MXROWS = [], MXDATA = null, MXMODE = 'steps', MXCAP = false;
+const actW = code => META.activities.find(a => a.code === code)?.w ?? 1;   // weight of the activity inside its item (Setup → Activity weights)
+const wavg = pairs => { let s = 0, w = 0; for (const [v, x] of pairs) if (v != null) { s += v * x; w += x; } return w ? s / w : null; };
+async function renderMatrix() {
+  viewEl().innerHTML = '<p class="mut">Loading…</p>';
+  try {
+    const lr = await fetchAll(() => applyF(sb.from('v_matrix').select('*'), 'v_matrix').order('la_id'), 30000);
+    MXCAP = lr.length >= 30000;
+    const rows = lr.flatMap(r => (r.steps || []).map(x => ({ id: x.id, la_id: r.la_id, plot_name: r.plot_name, building: r.building, level: r.level, location: r.location, unit_type: r.unit_type, activity: r.activity, uom: r.uom, total_qty: r.total_qty, step_code: x.code, step_order: x.ord, pct: x.pct, weight: x.w, locked: x.locked, start_date: x.sd, finish_date: x.fd, trade_id: r.trade_id, trade: r.trade })));
+    MXROWS = rows;
+    const itemOf = Object.fromEntries(META.activities.map(a => [a.code, a.item || '']));
+    const acts = new Map();
+    rows.forEach(r => { const a = acts.get(r.activity) || { code: r.activity, trade: r.trade, item: itemOf[r.activity] || '', uom: r.uom, steps: new Map() }; a.steps.set(r.step_code, r.step_order); acts.set(r.activity, a); });
+    const ordOf = Object.fromEntries(META.activities.map(a => [a.code, a.ord || 0])), itemOrd = {};
+    acts.forEach(a => { const k = a.trade + '|' + a.item; itemOrd[k] = Math.min(itemOrd[k] ?? 1e9, ordOf[a.code] || 0); });
+    const A = [...acts.values()].sort((x, y) => x.trade.localeCompare(y.trade) || itemOrd[x.trade + '|' + x.item] - itemOrd[y.trade + '|' + y.item] || x.item.localeCompare(y.item) || (ordOf[x.code] - ordOf[y.code]) || x.code.localeCompare(y.code)).map(a => ({ ...a, steps: [...a.steps.entries()].sort((p, q) => p[1] - q[1]).map(x => x[0]) }));
+    const flats = new Map();
+    rows.forEach(r => {
+      const k = r.plot_name + '|' + r.building + '|' + r.level + '|' + r.location;
+      const f = flats.get(k) || { r, cells: {}, act: {}, qty: {}, rowsOf: {} };
+      (f.rowsOf[r.activity] ||= []).push(r);
+      f.cells[r.activity + '|' + r.step_code] = r; f.qty[r.activity] = Number(r.total_qty) || 0;
+      const o = f.act[r.activity] ||= { ws: 0, wp: 0 }; o.ws += Number(r.weight); o.wp += Number(r.weight) * Number(r.pct);
+      flats.set(k, f);
+    });
+    const list = [...flats.values()].sort((a, b) => natural(a.r.plot_name, b.r.plot_name) || natural(a.r.building, b.r.building) || natural(a.r.level, b.r.level) || natural(a.r.location, b.r.location));
+    const aov = (f, code) => { const o = f.act[code]; return o && o.ws ? o.wp / o.ws : null; };
+    const showP = list.some(f => f.r.plot_name !== list[0].r.plot_name);
+    const label = f => (showP ? f.r.plot_name + ' · ' : '') + locLabel(f.r);
+    const items = []; A.forEach(a => { let g = items[items.length - 1]; if (!g || g.item !== a.item || g.trade !== a.trade) items.push(g = { item: a.item, trade: a.trade, acts: [] }); g.acts.push(a); });
+    MXDATA = { A, items, list, aov, label, showP };
+    drawMatrix();
+    if (lr.length >= 30000) toast('Too many rows for one report: only the first 30,000 flat-activities are used. Narrow the filters.', 7000);
+  } catch (e) { failView(e); }
+}
+let MXGROUP = 'flat', MXUNIT = 'pct';
+const qsum = (flats, get, code) => { let qn = 0, qd = 0; flats.forEach(f => { const v = get(f); if (v == null) return; const q = f.qty[code] || 0; qd += q; qn += q * v / 100; }); return { qn, qd }; };   // completed quantity / total quantity
+const cnt = (flats, get) => { let n = 0, d = 0; flats.forEach(f => { const v = get(f); if (v == null) return; d++; if (v >= 99.999) n++; }); return { n, d }; };   // completed locations / locations that have the work
+const BORDER_ITEM = 'gi', BORDER_ACT = 'ga';
+/* matrix colours: strictly 3 states – not started (0) / started (1–99) / complete (100); grey = no such work */
+const MXC = { none: '#f3f4f6', zero: '#f8c9c9', part: '#ffe08a', done: '#7fd88a' };
+const mxc = p => p == null ? MXC.none : p <= 0 ? MXC.zero : p >= 99.999 ? MXC.done : MXC.part;
+/* dates of a group: earliest start, latest finish; the finish counts only when every location that has the work is complete */
+const dts = (flats, rowsOf) => { let ds = null, df = null, n = 0, done = 0;
+  flats.forEach(f => { const rs = rowsOf(f); if (!rs.length) return; n++; if (rs.every(x => Number(x.pct) >= 99.999)) done++;
+    rs.forEach(x => { if (x.start_date && (!ds || x.start_date < ds)) ds = x.start_date; if (x.finish_date && (!df || x.finish_date > df)) df = x.finish_date; }); });
+  return { ds, df, dn: n > 0 && done === n, dd: n }; };
+/* quantity-weighted average over a set of flats (falls back to a plain average if no quantities) */
+const wq = (flats, get, code) => { let s = 0, w = 0, n = 0, sv = 0; flats.forEach(f => { const v = get(f); if (v == null) return; const q = f.qty[code] || 0; s += v * q; w += q; sv += v; n++; }); return w ? s / w : n ? sv / n : null; };
+function buildGrid() {
+  const { A, items, list, aov, label, showP } = MXDATA;
+  const lab = { level: r => (showP ? r.plot_name + ' · ' : '') + (multiB(r.plot_name) ? r.building + ' · ' : '') + levelLabel(r.level), tower: r => (showP ? r.plot_name + ' · ' : '') + r.building, project: r => r.plot_name };
+  const gk = { level: r => r.plot_name + '|' + r.building + '|' + r.level, tower: r => r.plot_name + '|' + r.building, project: r => r.plot_name };
+  let units;
+  if (MXGROUP === 'flat') units = list.map(f => ({ lead: [label(f), f.r.unit_type || ''], key: f.r.plot_name + '|' + f.r.building + '|' + f.r.level, flats: [f] }));
+  else {
+    const m = new Map(); list.forEach(f => { const k = gk[MXGROUP](f.r); (m.get(k) || m.set(k, { r: f.r, flats: [] }).get(k)).flats.push(f); });
+    units = [...m.values()].map(u => ({ lead: [lab[MXGROUP](u.r), String(u.flats.length)], key: MXGROUP === 'level' ? u.r.plot_name + '|' + u.r.building : MXGROUP === 'tower' ? u.r.plot_name : '', flats: u.flats }));
+  }
+  const lead = { flat: ['Location', 'Type'], level: ['Level', 'Locations'], tower: ['Tower', 'Locations'], project: ['Project', 'Locations'] }[MXGROUP];
+  if (MXMODE === 'steps') {
+    const groups = [], top = []; let prev = null;
+    A.forEach(a => {
+      const st = a.steps.filter(s => !F.step.size || F.step.has(s)); if (!st.length) return;
+      const ik = a.trade + '|' + a.item, first = prev !== ik, cls = first ? BORDER_ITEM : BORDER_ACT; prev = ik;
+      if (first) top.push({ label: a.item || '–', span: 0, cls: BORDER_ITEM });
+      top[top.length - 1].span += st.length;
+      groups.push({ label: a.code + (MXUNIT === 'qty' ? ' (' + a.uom + ')' : ''), item: a.item, cls, code: a.code, cols: st.map((s, i) => ({ h: s, cls: i === 0 ? cls : '', step: s })) });
+    });
+    const rws = units.map(u => ({ lead: u.lead, key: u.key, cells: groups.map(g => g.cols.map(c => {
+      const dd = dts(u.flats, f => { const x = f.cells[g.code + '|' + c.step]; return x ? [x] : []; });
+      const gs = f => { const x = f.cells[g.code + '|' + c.step]; return x ? Number(x.pct) : null; };
+      if (u.flats.length === 1 && MXGROUP === 'flat') { const x = u.flats[0].cells[g.code + '|' + c.step]; return x ? { v: Number(x.pct), id: x.id, locked: x.locked, ...dd, ...cnt(u.flats, gs), ...qsum(u.flats, gs, g.code) } : { v: null, n: 0, d: 0, qn: 0, qd: 0, ...dd }; }
+      return { ...dd, ...cnt(u.flats, gs), ...qsum(u.flats, gs, g.code), v: wq(u.flats, f => { const x = f.cells[g.code + '|' + c.step]; return x ? Number(x.pct) : null; }, g.code) };
+    })) }));
+    return { lead, groups, top, rows: rws, exp: g => g.cols.map(c => (g.item ? g.item + ' ' : '') + g.code + ' ' + c.step) };
+  }
+  const groups = items.map(g => ({ label: g.item || '–', cls: BORDER_ITEM, cols: [...g.acts.map((a, i) => ({ h: a.code + (MXUNIT === 'qty' ? ' (' + a.uom + ')' : ''), cls: i === 0 ? BORDER_ITEM : BORDER_ACT, code: a.code })), { h: 'Item %', cls: BORDER_ACT + ' tot', tot: true, g }] }));
+  const rws = units.map(u => { const val = code => wq(u.flats, f => aov(f, code), code);
+    return { lead: u.lead, key: u.key, cells: groups.map(gr => gr.cols.map(c => c.tot
+      ? { v: wavg(c.g.acts.map(a => [val(a.code), actW(a.code)])), tot: true, ...dts(u.flats, f => c.g.acts.flatMap(a => f.rowsOf[a.code] || [])), ...cnt(u.flats, f => { const vs = c.g.acts.map(a => aov(f, a.code)).filter(x => x != null); return vs.length ? (vs.every(x => x >= 99.999) ? 100 : 0) : null; }) }
+      : { v: val(c.code), ...dts(u.flats, f => f.rowsOf[c.code] || []), ...cnt(u.flats, f => aov(f, c.code)), ...qsum(u.flats, f => aov(f, c.code), c.code) })) }; });
+  return { lead, groups, top: null, rows: rws, exp: g => g.cols.map(c => c.tot ? g.label + ' %' : g.label + ' ' + c.code) };
+}
+const C0 = () => MXUNIT === 'count';
+function drawMatrix() {
+  const { list } = MXDATA, g = buildGrid(), ncols = g.groups.reduce((t, x) => t + x.cols.length, 0), R = g.top ? 3 : 2;
+  const gn = { flat: 'location', level: 'level', tower: 'tower', project: 'project' };
+  const note = MXUNIT === 'dates' ? 'Each cell shows the earliest start date and, below it, the latest finish date. For a level / tower / project the finish date appears only when every location that has the work is 100% complete (green); yellow = started, not yet complete, red = not started. Dates are the actual dates entered on the steps.' + (MXGROUP === 'flat' ? ' Tap a cell to open it.' : '') : MXUNIT === 'qty' ? 'Each cell shows completed quantity / total quantity in the unit of the activity (shown in the heading). Completed quantity = quantity × the step\'s %. Item % columns are blank here because units differ between activities.' + (MXGROUP === 'flat' ? ' Tap a cell to open it.' : '') : C0() ? 'Each cell shows completed locations / locations that have the work. A location counts as completed when the step (or, in Item-wise, the whole activity or item) is at 100%.' + (MXGROUP === 'flat' ? ' Tap a cell to open it.' : '') : (MXMODE === 'steps' ? 'Each cell is the Completion % of a step; items are shown above their activities.' : 'Each cell is the progress of an activity; "Item %" combines the activities of the item using the weights set in Setup.')
+    + (C0() ? '' : MXGROUP === 'flat' ? ' Tap a cell to open it.' : ' Each row summarises its locations: quantity-weighted average of the locations\' progress (bigger quantities count more).');
+  const avg = arr => { const v = arr.filter(x => x != null); return v.length ? v.reduce((t, x) => t + x, 0) / v.length : null; };
+  const pc = (n, d) => d ? Math.round(n / d * 100) + '%' : '', C = MXUNIT === 'count', D = MXUNIT === 'dates', Q = MXUNIT === 'qty', dfm = x => x ? new Date(x + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g, '-') : '', qf = x => fmt(x, Math.abs(x) >= 100 ? 0 : 1);
+  const cell = (c, cls) => { if (D) return `<td class="${cls || ''}${c.id ? ' c' : ''}${c.tot ? ' tot' : ''}" ${c.id ? `data-id="${c.id}"` : ''} style="background:${c.dn ? MXC.done : c.ds ? MXC.part : c.dd ? MXC.zero : MXC.none}">${c.ds || c.df ? `<span class="dt">${dfm(c.ds) || '…'}</span>${c.dn && c.df ? `<span class="dt">${dfm(c.df)}</span>` : ''}` : ''}</td>`;
+    const hv = C ? (c.d ? c.n / c.d * 100 : null) : Q ? (c.tot ? null : c.qd ? c.qn / c.qd * 100 : null) : c.v, t = C ? (c.d ? c.n + '/' + c.d + ' <small class="pcs">' + pc(c.n, c.d) + '</small>' : '') : Q ? (c.tot || !c.qd ? '' : qf(c.qn) + ' / ' + qf(c.qd)) : (c.v == null ? '' : fmt(c.v, 0));
+    return `<td class="${cls || ''}${c.id ? ' c' : ''}${c.tot ? ' tot' : ''}" ${c.id ? `data-id="${c.id}"` : ''} style="background:${mxc(hv)}">${t === '' ? '' : (c.tot ? '<b>' + t + '</b>' : t) + (c.locked && !C ? '🔒' : '')}</td>`; };
+  const btn = (attr, k, t, cur) => `<button data-${attr}="${k}" class="${k === cur ? 'pri' : ''}">${t}</button>`;
+  viewEl().innerHTML = `<div class="bar" style="margin-bottom:8px"><h2 style="margin:0">${MXMODE === 'steps' ? 'Steps' : 'Item-wise'} matrix · by ${gn[MXGROUP]} · ${list.length} locations · ${MXDATA.A.length} activities</h2><span class="sp"></span>
+   <span class="mut">View</span>${btn('mx', 'steps', 'Steps', MXMODE)}${btn('mx', 'items', 'Item-wise', MXMODE)}
+   <span class="mut" style="margin-left:8px">Show</span>${btn('mu', 'pct', 'Progress %', MXUNIT)}${btn('mu', 'count', 'Completed locations', MXUNIT)}${btn('mu', 'qty', 'Quantity', MXUNIT)}${btn('mu', 'dates', 'Dates', MXUNIT)}
+   <span class="mut" style="margin-left:8px">Group by</span>${btn('mg', 'flat', 'Location', MXGROUP)}${btn('mg', 'level', 'Level', MXGROUP)}${btn('mg', 'tower', 'Tower', MXGROUP)}${btn('mg', 'project', 'Project', MXGROUP)}
+   <button id="mxpdf">Export PDF</button><button id="mxxl">Export Excel</button><button id="mxcsv">Export CSV</button></div>
+   ${MXCAP ? '<div class="warnmsg">Too many rows for one report: only the first 30,000 flat-activities are shown. Narrow the filters.</div>' : ''}
+   <p class="mut"><span class="lg" style="background:${MXC.zero}"></span> Not started (0) &nbsp; <span class="lg" style="background:${MXC.part}"></span> Started (1–99%) &nbsp; <span class="lg" style="background:${MXC.done}"></span> Complete (100%) &nbsp; <span class="lg" style="background:${MXC.none}"></span> No such work<br>${note} Use the filters above to narrow it. Headings and the first columns stay in view while you scroll.</p>
+   ${!list.length || !ncols ? '<div class="card">No data for these filters.</div>' : `<div class="tw mxw"><table class="mx"><thead>
+   <tr>${g.lead.map((h, i) => `<th rowspan="${R}" class="l${i + 1}">${esc(h)}</th>`).join('')}${g.top ? g.top.map(t => `<th colspan="${t.span}" class="${t.cls} grp">${esc(t.label)}</th>`).join('') : g.groups.map(gr => `<th colspan="${gr.cols.length}" class="${gr.cls} grp">${esc(gr.label)}</th>`).join('')}</tr>
+   ${g.top ? `<tr>${g.groups.map(gr => `<th colspan="${gr.cols.length}" class="${gr.cls}">${esc(gr.label)}</th>`).join('')}</tr>` : ''}
+   <tr>${g.groups.map(gr => gr.cols.map(c => `<th class="${c.cls || ''}">${esc(c.h)}</th>`).join('')).join('')}</tr></thead><tbody>
+   ${g.rows.map((r, ri) => `<tr${ri && r.key !== g.rows[ri - 1].key ? ' class="brk"' : ''}>${r.lead.map((x, i) => `<td class="l${i + 1}">${esc(x)}</td>`).join('')}${g.groups.map((gr, gi) => gr.cols.map((c, ci) => cell(r.cells[gi][ci], c.cls)).join('')).join('')}</tr>`).join('')}
+   </tbody><tfoot><tr><td class="l1"><b>${D ? 'Range' : C || Q ? 'Total' : 'Average'}</b></td><td class="l2"><b>${MXGROUP === 'flat' ? '' : fmt(g.rows.reduce((t, r) => t + (Number(r.lead[1]) || 0), 0), 0)}</b></td>${g.groups.map((gr, gi) => gr.cols.map((c, ci) => { let t = ''; if (D) { const cs = g.rows.map(r => r.cells[gi][ci]), ds = cs.map(x => x.ds).filter(Boolean).sort()[0], all = cs.filter(x => x.dd), dn = all.length && all.every(x => x.dn), df = dn ? cs.map(x => x.df).filter(Boolean).sort().pop() : null; t = ds || df ? `<span class="dt">${dfm(ds) || '…'}</span>${df ? `<span class="dt">${dfm(df)}</span>` : ''}` : ''; } else if (Q) { if (!c.tot) { const qn = g.rows.reduce((x, r) => x + r.cells[gi][ci].qn, 0), qd = g.rows.reduce((x, r) => x + r.cells[gi][ci].qd, 0); t = qd ? qf(qn) + ' / ' + qf(qd) : ''; } } else if (C) { const n = g.rows.reduce((x, r) => x + r.cells[gi][ci].n, 0), d = g.rows.reduce((x, r) => x + r.cells[gi][ci].d, 0); t = d ? n + '/' + d + ' <small class="pcs">' + pc(n, d) + '</small>' : ''; } else { const v = avg(g.rows.map(r => r.cells[gi][ci].v)); t = v == null ? '' : fmt(v, 0); } return `<td class="${c.cls || ''}"><b>${t}</b></td>`; }).join('')).join('')}</tr></tfoot></table></div>`}`;
+  $$('[data-mx]').forEach(b => b.onclick = () => { MXMODE = b.dataset.mx; drawMatrix(); });
+  $$('[data-mu]').forEach(b => b.onclick = () => { MXUNIT = b.dataset.mu; drawMatrix(); });
+  $$('[data-mg]').forEach(b => b.onclick = () => { MXGROUP = b.dataset.mg; drawMatrix(); });
+  $$('.mx td.c').forEach(td => td.onclick = () => openEdit(+td.dataset.id));
+  if (!list.length || !ncols) return;
+  const flat = () => {
+    const head = [...g.lead, ...g.groups.flatMap(gr => g.exp(gr))];
+    const body = g.rows.map(r => [...r.lead, ...r.cells.flatMap(cs => cs.map(c => MXUNIT === 'dates' ? (c.ds || c.df ? dfm(c.ds) + (c.dn && c.df ? ' → ' + dfm(c.df) : '') : '') : MXUNIT === 'qty' ? (c.tot || !c.qd ? '' : Math.round(c.qn * 100) / 100 + '/' + Math.round(c.qd * 100) / 100) : MXUNIT === 'count' ? (c.d ? c.n + '/' + c.d + ' (' + pc(c.n, c.d) + ')' : '') : c.v == null ? '' : Math.round(c.v * 10) / 10))]);
+    return [head, ...body];
+  };
+  const nm = () => 'matrix_' + MXMODE + '_by_' + MXGROUP + (MXUNIT === 'count' ? '_completed' : MXUNIT === 'qty' ? '_quantity' : MXUNIT === 'dates' ? '_dates' : '') + '_' + today();
+  $('#mxpdf').onclick = () => {
+    const tbl = $('table.mx'); if (!tbl) return;
+    const w = window.open('', '_blank'); if (!w) return toast('Allow pop-ups for this page to export the PDF.', 6000);
+    const title = $('h2', viewEl()).textContent + ' · ' + today(), lg = [['Not started (0)', MXC.zero], ['Started (1–99%)', MXC.part], ['Complete (100%)', MXC.done], ['No such work', MXC.none]].map(x => `<span style="display:inline-block;width:12px;height:12px;background:${x[1]};border:1px solid #999;vertical-align:middle"></span> ${x[0]}&nbsp;&nbsp;`).join('');
+    const fl = [...document.querySelectorAll('#filters .chip, .filters .chip')].map(x => x.textContent.trim()).filter(Boolean).join(' | ');
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
+      @page{size:A3 landscape;margin:8mm}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#1c2733}h2{font-size:15px;margin:0 0 4px}.sub{font-size:10px;margin:0 0 6px;color:#444}
+      table{border-collapse:collapse;font-size:9px}td,th{border:1px solid #c9ced6;padding:2px 4px;text-align:center;white-space:nowrap}
+      th{background:#eaf1fb;font-weight:bold}thead{display:table-header-group}tr{page-break-inside:avoid}td.l1,td.l2,th.l1,th.l2{text-align:left}
+      .gi{border-left:2px solid #1c2733}.ga{border-left:1px solid #666}tr.brk td{border-top:2px solid #1c2733}.dt{display:block;line-height:1.2}small{font-size:8px}
+    </style></head><body><h2>${esc(title)}</h2><p class="sub">${lg}${fl ? '<br>Filters: ' + esc(fl) : ''}</p>${tbl.outerHTML}</body></html>`);
+    w.document.close(); w.focus(); setTimeout(() => w.print(), 400);   // choose "Save as PDF" in the print dialog
+  };
+  $('#mxcsv').onclick = () => { const t = flat(); download(nm() + '.csv', toCSV(t.slice(1).map(r => Object.fromEntries(t[0].map((h, i) => [h, r[i]]))), t[0])); };
+  $('#mxxl').onclick = async () => {
+    try {
+      if (!window.XLSX) await new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'; sc.onload = ok; sc.onerror = () => no(new Error('Could not load the Excel library (offline?). Use CSV.')); document.head.appendChild(sc); });
+      const t = flat(), ws = XLSX.utils.aoa_to_sheet(t), wb = XLSX.utils.book_new();
+      ws['!cols'] = [{ wch: 22 }, { wch: 7 }]; ws['!freeze'] = { xSplit: 2, ySplit: 1 };
+      XLSX.utils.book_append_sheet(wb, ws, 'Matrix'); XLSX.writeFile(wb, nm() + '.xlsx');
+    } catch (e) { toast(errText(e), 6000); }
+  };
+}
+
+/* ================= import / export ================= */
+const IMPORT_COLS = ['project', 'building', 'level', 'location', 'activity', 'step', 'pct', 'start_date', 'finish_date', 'expected_completion_date', 'responsible_party', 'reference', 'issues_description'];
+const EXPORT_COLS = ['plot_name', 'building', 'level', 'location', 'unit_type', 'trade', 'activity', 'step_code', 'step', 'total_qty', 'uom', 'pct', 'installed_qty', 'balance_qty', 'planned_start_date', 'start_date', 'finish_date', 'expected_completion_date', 'locked', 'reference', 'responsible_party', 'issues_description', 'planned_manhours', 'actual_manhours'];
+async function renderIO() {
+  if (!isAdmin()) { viewEl().innerHTML = '<div class="err">Admins only.</div>'; return; }
+  viewEl().innerHTML = `
+  <div class="card"><h2>Export</h2><p class="mut">Exports every step row that matches the filters on the Tracker tab (filters stay active).</p>
+   <div class="bar"><button id="ex">Export tracker CSV</button><button id="tpl">Download update template</button></div><div id="exm"></div></div>
+  <div class="card"><h2>Import progress updates (CSV)</h2>
+   <p class="mut">Columns: ${IMPORT_COLS.join(', ')}. <b>step</b> is the step code (SPC, MEA, MDL, MIR, ASS, SIC, INS, WIR). Blank cells are left unchanged. Imports follow exactly the same rules as the screen.</p>
+   <input type="file" id="fi" accept=".csv"><div id="im"></div></div>
+  ${isAdmin() ? `<div class="card"><h2>Import quantities (admin)</h2><p class="mut">Columns: project, building, level, location, activity, total_qty. Creates or updates the Total Qty of a flat + activity (step rows are generated automatically for new ones).</p>
+   <input type="file" id="fq" accept=".csv"><div id="qm"></div></div>` : ''}
+  <div class="card"><h2>Recent bulk updates</h2><div id="bt"><p class="mut">Loading…</p></div></div>`;
+  $('#ex').onclick = async () => {
+    $('#exm').innerHTML = '<p class="mut">Preparing…</p>';
+    try { const rows = await fetchAll(() => applyF(sb.from('v_tracker').select('*'), 'v_tracker').order('id'), 50000); download('tracker_' + today() + '.csv', toCSV(rows, EXPORT_COLS)); $('#exm').innerHTML = `<div class="okmsg">${rows.length} rows exported.</div>`; }
+    catch (e) { $('#exm').innerHTML = `<div class="err">${esc(errText(e))}</div>`; }
+  };
+  $('#tpl').onclick = () => download('update_template.csv', toCSV([{ project: 'AV03', building: 'A', level: '03', location: '05', activity: 'THR', step: 'MEA', pct: 100, start_date: today(), finish_date: today() }], IMPORT_COLS));
+  $('#fi').onchange = e => e.target.files[0] && importSteps(e.target.files[0]);
+  if (isAdmin()) $('#fq').onchange = e => e.target.files[0] && importQty(e.target.files[0]);
+  loadBatches();
+}
+async function importSteps(file) {
+  const out = $('#im'); out.innerHTML = '<p class="mut">Reading…</p>';
+  try {
+    const rows = parseCSV(await file.text()); if (!rows.length) throw new Error('The file has no data rows.');
+    const acts = [...new Set(rows.map(r => r.activity).filter(Boolean))];
+    const idx = new Map();
+    const found = await fetchAll(() => sb.from('v_tracker').select('id,plot_name,building,level,location,activity,step_code').in('activity', acts).order('id'), 50000);
+    const key = (p, b, l, x, a, s) => [p, b, l, x, a, s].map(v => String(v ?? '').trim().toLowerCase()).join('|');
+    found.forEach(r => { idx.set(key(r.plot_name, r.building, r.level, r.location, r.activity, r.step_code), r.id); if (!idx.has(key('', r.building, r.level, r.location, r.activity, r.step_code))) idx.set(key('', r.building, r.level, r.location, r.activity, r.step_code), r.id); });
+    const ups = [], bad = [];
+    rows.forEach((r, i) => {
+      const id = idx.get(key(r.project, r.building, r.level, r.location, r.activity, r.step));
+      if (!id) return bad.push(`Row ${i + 2}: no match for ${r.building}/${r.level}/${r.location} ${r.activity} ${r.step}`);
+      const c = {};
+      for (const n of IMPORT_COLS.slice(6)) { const v = (r[n] ?? '').trim(); if (v === '') continue; c[n] = n === 'pct' ? Number(v) : (v.toUpperCase() === 'NULL' ? '' : v); }
+      if (!Object.keys(c).length) return; if (c.pct !== undefined && !isFinite(c.pct)) return bad.push(`Row ${i + 2}: pct is not a number`);
+      ups.push({ id, changes: c });
+    });
+    const ordered = ups; // the database sorts each call by flat and step order
+    const chunks = []; for (let i = 0; i < ordered.length; i += 300) chunks.push(ordered.slice(i, i + 300));
+    // keep a flat's steps in the same chunk: sort by id (ids are grouped by flat) before chunking
+    const run = async dry => {
+      let up = 0, sk = []; out.querySelectorAll('button').forEach(b => b.disabled = true);
+      try { for (const ch of chunks) { const { data, error } = await sb.rpc('apply_step_updates', { p_updates: ch, p_note: 'CSV import: ' + file.name, p_dry_run: dry }); if (error) throw error; up += data.updated; sk = sk.concat(data.skipped); }
+        show(dry, up, sk); if (!dry) toast(up + ' rows updated'); } catch (e) { out.insertAdjacentHTML('beforeend', `<div class="err">${esc(errText(e))}</div>`); }
+      out.querySelectorAll('button').forEach(b => b.disabled = false);
+    };
+    const show = (dry, up, sk) => {
+      out.innerHTML = `<div class="${bad.length || sk.length ? 'warnmsg' : 'okmsg'}"><b>${dry ? 'Preview: ' + up + ' would update' : up + ' updated'}</b> · ${sk.length} rejected by rules · ${bad.length} not matched · ${rows.length} rows in file</div>
+      ${bad.length || sk.length ? `<div class="tw" style="max-height:240px"><table><tbody>${bad.slice(0, 100).map(b => `<tr><td colspan=2>${esc(b)}</td></tr>`).join('')}${sk.slice(0, 200).map(x => `<tr><td>${esc(x.label || x.id)}</td><td>${esc(x.message)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+      ${dry ? '<div class="bar" style="margin-top:8px"><button class="pri" id="iap">Apply import</button></div>' : ''}`;
+      if (dry) $('#iap').onclick = () => run(false);
+    };
+    if (!ups.length) { out.innerHTML = `<div class="warnmsg">Nothing to apply. ${bad.length} rows were not matched.<br>${esc(bad.slice(0, 5).join('\n'))}</div>`; return; }
+    ups.sort((a, b) => a.id - b.id); chunks.length = 0; for (let i = 0; i < ups.length; i += 300) chunks.push(ups.slice(i, i + 300));
+    run(true);
+  } catch (e) { out.innerHTML = `<div class="err">${esc(errText(e))}</div>`; }
+}
+async function importQty(file) {
+  const out = $('#qm'); out.innerHTML = '<p class="mut">Reading…</p>';
+  try {
+    const rows = parseCSV(await file.text()); if (!rows.length) throw new Error('No data rows.');
+    const P = Object.fromEntries(META.projects.map(p => [p.name.toLowerCase(), p.id])), A = Object.fromEntries(META.activities.map(a => [a.code.toLowerCase(), a.id]));
+    const L = new Map(META.locations.map(l => [[l.project_id, l.building, l.level, l.location].join('|').toLowerCase(), l.id]));
+    const ups = [], bad = [];
+    rows.forEach((r, i) => {
+      const pid = P[(r.project || '').toLowerCase()] || (META.projects.length === 1 ? META.projects[0].id : null), aid = A[(r.activity || '').toLowerCase()];
+      const lid = L.get([pid, r.building, r.level, r.location].join('|').toLowerCase()), q = Number(r.total_qty);
+      if (!lid || !aid || !isFinite(q) || q < 0) return bad.push(`Row ${i + 2}: ${!lid ? 'location' : !aid ? 'activity' : 'quantity'} not recognised`);
+      ups.push({ location_id: lid, activity_id: aid, total_qty: q });
+    });
+    let n = 0;
+    for (let i = 0; i < ups.length; i += 400) { const { error } = await sb.from('location_activities').upsert(ups.slice(i, i + 400), { onConflict: 'location_id,activity_id' }); if (error) throw error; n += Math.min(400, ups.length - i); }
+    out.innerHTML = `<div class="${bad.length ? 'warnmsg' : 'okmsg'}">${n} quantities saved · ${bad.length} rows not recognised.${bad.length ? '<br>' + esc(bad.slice(0, 10).join('\n')) : ''}</div>`;
+  } catch (e) { out.innerHTML = `<div class="err">${esc(errText(e))}</div>`; }
+}
+async function loadBatches() {
+  const { data, error } = await sb.from('bulk_batches').select('*').order('id', { ascending: false }).limit(25);
+  const el = $('#bt'); if (!el) return; if (error) return el.innerHTML = `<div class="err">${esc(errText(error))}</div>`;
+  el.innerHTML = `<div class="tw cardwrap" style="max-height:340px"><table class="cards"><thead><tr><th>#</th><th>When</th><th>By</th><th>Rows</th><th>Note</th><th></th></tr></thead><tbody>
+  ${data.filter(b => b.row_count > 0 || b.undone_at).map(b => `<tr><td data-l="#">${b.id}</td><td data-l="When">${new Date(b.created_at).toLocaleString()}</td><td data-l="By">${esc(PROFILES[b.created_by]?.full_name || PROFILES[b.created_by]?.email || '')}</td><td data-l="Rows">${b.row_count}</td><td data-l="Note">${esc(b.note || '')}</td>
+   <td>${b.undone_at ? '<small>undone</small>' : isAdmin() ? `<button data-u="${b.id}">Undo</button>` : ''}</td></tr>`).join('') || '<tr><td colspan=6 class="mut">None yet.</td></tr>'}</tbody></table></div>`;
+  $$('[data-u]', el).forEach(b => b.onclick = async () => {
+    const reason = await askText('Undo bulk update #' + b.dataset.u, 'Reason'); if (!reason) return;
+    const { data: r, error } = await sb.rpc('undo_bulk_batch', { p_batch: +b.dataset.u, p_reason: reason });
+    if (error) return toast(errText(error), 6000);
+    toast(`Restored ${r.restored} rows` + (r.skipped?.length ? `, ${r.skipped.length} could not be restored` : ''), 6000); loadBatches();
+  });
+}
+
+/* ================= setup (admin) ================= */
+async function renderSetup() {
+  if (!isAdmin()) { viewEl().innerHTML = '<div class="err">Admins only.</div>'; return; }
+  viewEl().innerHTML = `<div class="card"><h2>Users and trade permissions</h2><div id="su"><p class="mut">Loading…</p></div></div>
+  <div class="card"><h2>Order of activities in the matrix</h2><div id="so"></div></div>
+  <div class="card"><h2>Activity weights inside each item (for Item %)</h2><div id="sw2"></div></div>
+  <div class="card"><h2>Activity steps, weights, manhours and predecessors</h2><div id="sa"></div></div>
+  <div class="card"><h2>Add project / location / activity</h2><div id="sn"></div></div>`;
+  setupUsers(); setupOrder(); setupItemWeights(); setupSteps(); setupNew();
+}
+async function setupUsers() {
+  const el = $('#su');
+  try {
+    const [p, ut] = await Promise.all([sb.from('profiles').select('*').order('created_at'), sb.from('user_trades').select('*')]);
+    if (p.error) throw p.error; if (ut.error) throw ut.error;
+    const pend = p.data.filter(u => !u.approved);
+    el.innerHTML = `${pend.length ? `<div class="warnmsg"><b>${pend.length} account(s) waiting for approval</b><br>${pend.map(u => `${esc(u.full_name || u.email)} <small>${esc(u.email || '')}</small> <button data-ok="${u.id}">Approve</button> <button data-no="${u.id}" style="color:var(--bad)">Reject</button>`).join('<br>')}</div>` : ''}
+    <p class="mut">Role = admin (everything), editor (can edit the trades ticked below), viewer (read only). <b>Can view</b> decides which trades the user sees at all; editing or approving a trade also lets the user see it. Tick <b>Approve MIR/WIR</b> for engineers who may complete MIR / WIR. Unapproved accounts see nothing.</p>
+    <div class="bar"><label style="margin:0">Max rows in one bulk update</label><input id="bmax" type="number" min="1" max="2000" value="${bulkMax()}" style="width:90px"><button id="bmaxs">Save</button></div>
+    ${p.data.filter(u => u.approved).map(u => { const mine = ut.data.filter(x => x.user_id === u.id); return `<details class="card" style="margin:6px 0"><summary><b>${esc(u.full_name || u.email)}</b> <small>${esc(u.email || '')}</small> · ${esc(u.role)}</summary>
+      <label>Role</label><select data-role="${u.id}">${['admin', 'editor', 'viewer'].map(r => `<option ${r === u.role ? 'selected' : ''}>${r}</option>`).join('')}</select>
+      <div class="tw" style="margin-top:8px;max-height:none"><table><thead><tr><th>Trade</th><th>Can view</th><th>Can edit</th><th>Can approve MIR/WIR</th></tr></thead><tbody>
+      ${META.trades.map(t => { const x = mine.find(m => m.trade_id === t.id); return `<tr><td>${esc(t.name)}</td><td><input type="checkbox" data-ut="${u.id}|${t.id}|can_view" ${x?.can_view || x?.can_edit || x?.can_approve ? 'checked' : ''}></td><td><input type="checkbox" data-ut="${u.id}|${t.id}|can_edit" ${x?.can_edit ? 'checked' : ''}></td><td><input type="checkbox" data-ut="${u.id}|${t.id}|can_approve" ${x?.can_approve ? 'checked' : ''}></td></tr>`; }).join('')}
+      </tbody></table></div></details>`; }).join('')}`;
+    $$('[data-role]', el).forEach(s => s.onchange = async () => { const { error } = await sb.from('profiles').update({ role: s.value }).eq('id', s.dataset.role); toast(error ? errText(error) : 'Role saved', 5000); if (!error) setupUsers(); });
+    $$('[data-ut]', el).forEach(c => c.onchange = async () => {
+      const [uid, tid, col] = c.dataset.ut.split('|'), row = c.closest('tr');
+      let vw = $('[data-ut$="can_view"]', row).checked, ed = $('[data-ut$="can_edit"]', row).checked, ap = $('[data-ut$="can_approve"]', row).checked;
+      if (col !== 'can_view' && (ed || ap)) vw = true;                 // editing / approving needs viewing
+      if (col === 'can_view' && !vw) ed = ap = false;                  // removing view removes edit and approve
+      $('[data-ut$="can_view"]', row).checked = vw; $('[data-ut$="can_edit"]', row).checked = ed; $('[data-ut$="can_approve"]', row).checked = ap;
+      const r = (vw || ed || ap) ? await sb.from('user_trades').upsert({ user_id: uid, trade_id: +tid, can_view: vw, can_edit: ed, can_approve: ap }, { onConflict: 'user_id,trade_id' }) : await sb.from('user_trades').delete().eq('user_id', uid).eq('trade_id', +tid);
+      toast(r.error ? errText(r.error) : 'Saved');
+    });
+    $$('[data-ok]', el).forEach(b => b.onclick = async () => { const { error } = await sb.from('profiles').update({ approved: true }).eq('id', b.dataset.ok); toast(error ? errText(error) : 'Approved. Now tick the trades this user may see.', 6000); if (!error) setupUsers(); });
+    $$('[data-no]', el).forEach(b => b.onclick = async () => { if (!confirm('Reject this sign-up? The account stays blocked and unapproved.')) return; toast('Left unapproved. Delete the user in Supabase → Authentication if you want to remove it.', 7000); });
+    $('#bmaxs').onclick = async () => { const v = Math.max(1, Math.min(2000, Math.floor(+$('#bmax').value || 0))); const { error } = await sb.from('app_settings').upsert({ key: 'bulk_max_steps', value: String(v) }); if (!error) SETTINGS.bulk_max_steps = String(v); toast(error ? errText(error) : 'Saved', 4000); };
+  } catch (e) { el.innerHTML = `<div class="err">${esc(errText(e))}</div>`; }
+}
+function setupOrder() {
+  const el = $('#so'), L = [...META.activities].sort((a, b) => a.trade.localeCompare(b.trade) || (a.ord - b.ord) || a.item.localeCompare(b.item) || a.code.localeCompare(b.code));
+  el.innerHTML = `<p class="mut">Type a number for each activity: the smaller the number, the further left it appears in the matrix reports (1, 2, 3 …). An item sits where its first activity sits, and its activities stay together. Leave 0 to keep alphabetical order. Within a trade, activities with the same number are sorted by item and code.</p>
+  <div class="tw" style="max-height:340px"><table><thead><tr><th>Trade</th><th>Item</th><th>Activity</th><th>Order</th></tr></thead><tbody>
+  ${L.map(a => `<tr><td>${esc(a.trade)}</td><td>${esc(a.item || '')}</td><td><b>${esc(a.code)}</b></td><td><input type="number" min="0" step="1" data-ord="${a.id}" value="${a.ord}" style="width:80px"></td></tr>`).join('')}
+  </tbody></table></div><div class="bar" style="margin-top:8px"><button class="pri" id="osave">Save order</button></div><div id="om"></div>`;
+  $('#osave').onclick = async () => {
+    let err = null;
+    for (const a of L) { const v = Math.max(0, Math.floor(+$(`[data-ord="${a.id}"]`, el).value || 0)); if (v === a.ord) continue;
+      const r = await sb.from('activities').update({ sort_order: v }).eq('id', a.id); if (r.error) { err = r.error; break; } a.ord = v; }
+    $('#om').innerHTML = err ? `<div class="err">${esc(errText(err))}</div>` : '<div class="okmsg">Saved. Open the Matrix tab to see the new order.</div>';
+  };
+}
+function setupItemWeights() {
+  const el = $('#sw2'), by = new Map();
+  META.activities.forEach(a => { const k = a.trade + '|' + a.item; (by.get(k) || by.set(k, { trade: a.trade, item: a.item, acts: [] }).get(k)).acts.push(a); });
+  const groups = [...by.values()].filter(g => g.acts.length > 1).sort((x, y) => x.trade.localeCompare(y.trade) || x.item.localeCompare(y.item));
+  el.innerHTML = `<p class="mut">Relative weight of each activity inside its item, for the <b>Item %</b> in the Item-wise and Level-wise matrix. Only the ratio matters (60 / 40 is the same as 3 / 2). 1 each = equal weight. Items with one activity are not listed.</p>
+  ${groups.map(g => `<div class="card" style="margin:6px 0"><b>${esc(g.item)}</b> <small>${esc(g.trade)}</small>
+   <div class="bar" style="margin-top:6px">${g.acts.map(a => `<span>${esc(a.code)} <input type="number" min="0" step="any" data-aw="${a.id}" value="${a.w}" style="width:80px"> <small data-pc="${a.id}"></small></span>`).join('')}</div></div>`).join('') || '<p class="mut">No items with several activities.</p>'}
+  <div class="bar"><button class="pri" id="awsave">Save weights</button></div><div id="awm"></div>`;
+  const pct = () => groups.forEach(g => { const t = g.acts.reduce((s, a) => s + (+$(`[data-aw="${a.id}"]`, el).value || 0), 0); g.acts.forEach(a => $(`[data-pc="${a.id}"]`, el).textContent = t ? '= ' + fmt((+$(`[data-aw="${a.id}"]`, el).value || 0) / t * 100, 0) + '%' : ''); });
+  $$('[data-aw]', el).forEach(i => i.oninput = pct); pct();
+  $('#awsave').onclick = async () => {
+    const bad = groups.find(g => g.acts.every(a => !(+$(`[data-aw="${a.id}"]`, el).value > 0)));
+    if (bad) return $('#awm').innerHTML = `<div class="err">Item ${esc(bad.item)}: at least one activity needs a weight above 0.</div>`;
+    let err = null;
+    for (const g of groups) for (const a of g.acts) { const v = +$(`[data-aw="${a.id}"]`, el).value || 0; if (v === a.w) continue;
+      const r = await sb.from('activities').update({ weight_in_item: v }).eq('id', a.id); if (r.error) { err = r.error; break; } a.w = v; }
+    $('#awm').innerHTML = err ? `<div class="err">${esc(errText(err))}</div>` : '<div class="okmsg">Saved. The matrix uses the new weights.</div>';
+  };
+}
+async function setupSteps() {
+  const el = $('#sa');
+  el.innerHTML = `<label>Activity</label><select id="sact">${META.activities.map(a => `<option value="${a.id}">${esc(a.code)} (${esc(a.trade)})</option>`).join('')}</select><div id="sdet"></div>`;
+  $('#sact').onchange = loadAS; loadAS();
+}
+async function loadAS() {
+  const aid = +$('#sact').value, el = $('#sdet'); el.innerHTML = '<p class="mut">Loading…</p>';
+  try {
+    const [as, pr] = await Promise.all([
+      sb.from('activity_steps').select('id,step_id,sort_order,weight,manhour_rate,step:steps(code,name)').eq('activity_id', aid).order('sort_order'),
+      sb.from('activity_step_predecessors').select('*')]);
+    if (as.error) throw as.error; if (pr.error) throw pr.error;
+    const ids = new Set(as.data.map(x => x.id)), code = Object.fromEntries(as.data.map(x => [x.id, x.step.code]));
+    const total = as.data.reduce((t, x) => t + Number(x.weight), 0);
+    const missing = META.steps.filter(s => !as.data.find(x => x.step_id === s.id));
+    el.innerHTML = `<div class="tw cardwrap" style="max-height:none;margin-top:8px"><table class="cards"><thead><tr><th>Step</th><th>Weight %</th><th>Manhours per ${esc(META.activities.find(a => a.id === aid).uom)}</th><th>Predecessors (must finish before this can progress)</th></tr></thead><tbody>
+    ${as.data.map(x => `<tr><td data-l="Step"><b>${esc(x.step.code)}</b> <small>${esc(x.step.name)}</small><br><button data-del="${x.id}" data-c="${esc(x.step.code)}" style="margin-top:4px;color:var(--bad)">Remove step</button></td>
+     <td data-l="Weight"><input type="number" step="any" min="0" data-w="${x.id}" value="${x.weight}"></td><td data-l="Manhour rate"><input type="number" step="any" min="0" data-m="${x.id}" value="${x.manhour_rate ?? ''}"></td>
+     <td class="full">${pr.data.filter(p => p.activity_step_id === x.id && ids.has(p.predecessor_id)).map(p => `<span class="chip">${esc(code[p.predecessor_id])} <small>${p.link_type}/${p.enforcement}</small> <b data-rm="${p.id}">✕</b></span>`).join('')}
+      <div class="bar" style="margin-top:4px"><select data-pa="${x.id}" style="width:auto"><option value="">+ predecessor…</option>${as.data.filter(y => y.id !== x.id).map(y => `<option value="${y.id}">${esc(y.step.code)}</option>`).join('')}</select>
+       <select data-lt="${x.id}" style="width:auto"><option>linked</option><option>strict</option></select><select data-en="${x.id}" style="width:auto"><option>block</option><option>warn</option></select><button data-add="${x.id}">Add</button></div></td></tr>`).join('')}
+    </tbody></table></div>
+    <p class="${Math.abs(total - 100) < .01 ? 'mut' : 'warnmsg'}">Weights total: <b>${fmt(total, 2)}</b> (aim for 100).</p>
+    <div class="bar"><button class="pri" id="sw">Save weights &amp; rates</button><button id="sdef">Apply default steps &amp; links</button><button id="sgen">Create missing step rows for all flats</button></div>
+    ${missing.length ? `<div class="bar" style="margin-top:8px"><select id="nstep" style="width:auto">${missing.map(s => `<option value="${s.id}">${esc(s.code)} – ${esc(s.name)}</option>`).join('')}</select><button id="nadd">Add this step to the activity</button></div>` : ''}<div id="sm"></div>
+    <small>Links: "linked" = % can never exceed the predecessor's % and dates follow it. "strict" = predecessor must be 100% first. "warn" records a warning instead of blocking.</small>`;
+    const msg = (t, ok) => $('#sm').innerHTML = `<div class="${ok ? 'okmsg' : 'err'}">${esc(t)}</div>`;
+    $$('[data-del]', el).forEach(b => b.onclick = async () => {
+      const id = +b.dataset.del;
+      try {
+        const used = await sb.from('location_activity_steps').select('id', { count: 'exact', head: true }).eq('activity_step_id', id).or('pct.gt.0,start_date.not.is.null');
+        if (used.error) throw used.error;
+        if (used.count) return msg(`Cannot remove ${b.dataset.c}: ${used.count} flats already have progress or dates on it. Only steps with no progress can be removed.`);
+        if (!confirm(`Remove step ${b.dataset.c} from this activity? Its empty step rows and its predecessor links are deleted.`)) return;
+        let r = await sb.from('location_activity_steps').delete().eq('activity_step_id', id); if (r.error) throw r.error;
+        r = await sb.from('activity_steps').delete().eq('id', id); if (r.error) throw r.error;
+        loadAS();
+      } catch (e) { msg(errText(e)); }
+    });
+    $('#sw').onclick = async () => {
+      try { for (const x of as.data) { const w = Number($(`[data-w="${x.id}"]`).value), m = $(`[data-m="${x.id}"]`).value; const { error } = await sb.from('activity_steps').update({ weight: w, manhour_rate: m === '' ? null : Number(m) }).eq('id', x.id); if (error) throw error; } msg('Saved', true); loadAS(); } catch (e) { msg(errText(e)); }
+    };
+    $('#sdef').onclick = async () => { const { data, error } = await sb.rpc('apply_default_steps', { p_activity: aid }); error ? msg(errText(error)) : (msg(data + ' steps added', true), loadAS()); };
+    $('#sgen').onclick = async () => { const { data, error } = await sb.rpc('generate_step_rows', { p_activity: aid }); error ? msg(errText(error)) : msg(data + ' step rows created', true); };
+    $('#nadd') && ($('#nadd').onclick = async () => { const sid = +$('#nstep').value, s = META.steps.find(z => z.id === sid); const { error } = await sb.from('activity_steps').insert({ activity_id: aid, step_id: sid, sort_order: s.sort_order, weight: 0 }); error ? msg(errText(error)) : loadAS(); });
+    $$('[data-rm]', el).forEach(b => b.onclick = async () => { const { error } = await sb.from('activity_step_predecessors').delete().eq('id', b.dataset.rm); error ? msg(errText(error)) : loadAS(); });
+    $$('[data-add]', el).forEach(b => b.onclick = async () => {
+      const id = b.dataset.add, pa = $(`[data-pa="${id}"]`).value; if (!pa) return;
+      const { error } = await sb.from('activity_step_predecessors').insert({ activity_step_id: +id, predecessor_id: +pa, link_type: $(`[data-lt="${id}"]`).value, enforcement: $(`[data-en="${id}"]`).value });
+      error ? msg(errText(error)) : loadAS();
+    });
+  } catch (e) { el.innerHTML = `<div class="err">${esc(errText(e))}</div>`; }
+}
+function setupNew() {
+  const el = $('#sn');
+  el.innerHTML = `<h3>New project</h3><div class="bar"><input id="np" placeholder="Project name" style="max-width:260px"><button id="npb">Add project</button></div>
+  <h3>New location (flat / common area)</h3><div class="g2"><div><label>Project</label><select id="lp">${META.projects.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div><div><label>Building <small>(leave blank if the project has one building)</small></label><input id="lb"></div>
+   <div><label>Level</label><input id="ll"></div><div><label>Flat / Location</label><input id="lf"></div><div><label>Type (1BR, 2BR, CA…)</label><input id="lt"></div></div><p><button id="lbb">Add location</button></p>
+  <h3>New activity</h3><div class="g2"><div><label>Code</label><input id="ac"></div>
+   <div><label>Item</label><select id="ai">${[...new Map(META.activities.map(a => [a.item_id, a.item])).entries()].map(([id, c]) => `<option value="${id}">${esc(c)}</option>`).join('')}</select></div>
+   <div><label>Unit</label><select id="au"><option>Sqm</option><option>LM</option><option>Pcs</option></select></div></div><p><button id="aab">Add activity</button> <small>Then give it steps in the section above.</small></p><div id="nm"></div>`;
+  const msg = (t, ok) => $('#nm').innerHTML = `<div class="${ok ? 'okmsg' : 'err'}">${esc(t)}</div>`;
+  const reload = async () => { await start(ME); setTab('setup'); };
+  $('#npb').onclick = async () => { const n = $('#np').value.trim(); if (!n) return; const { error } = await sb.from('projects').insert({ name: n }); error ? msg(errText(error)) : reload(); };
+  $('#lbb').onclick = async () => { const { error } = await sb.from('locations').insert({ project_id: +$('#lp').value, building: $('#lb').value.trim() || 'Main', level: $('#ll').value.trim(), location: $('#lf').value.trim(), unit_type: $('#lt').value.trim() || null }); error ? msg(errText(error)) : msg('Location added', true); };
+  $('#aab').onclick = async () => { const { error } = await sb.from('activities').insert({ code: $('#ac').value.trim(), item_id: +$('#ai').value, uom: $('#au').value }); error ? msg(errText(error)) : reload(); };
+}
+
+init();
+</script>
+</body>
+</html>
